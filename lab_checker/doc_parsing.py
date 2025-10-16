@@ -620,6 +620,97 @@ def _prepare_visual_references(
     return updated_visuals, visual_refs, global_counter
 
 
+def _is_word_in_diagram(
+    word: Dict, diagram_bboxes: List[Tuple[float, float, float, float]]
+) -> bool:
+    """
+    Check if a word falls within any diagram bounding box.
+
+    Args:
+        word: Word dictionary with 'x0', 'top', 'x1', 'bottom' keys
+        diagram_bboxes: List of diagram bounding boxes (x0, top, x1, bottom)
+
+    Returns:
+        True if word overlaps with any diagram
+    """
+    word_x0 = word.get("x0", 0)
+    word_top = word.get("top", 0)
+    word_x1 = word.get("x1", 0)
+    word_bottom = word.get("bottom", 0)
+
+    for bbox in diagram_bboxes:
+        diagram_x0, diagram_top, diagram_x1, diagram_bottom = bbox
+
+        # Check if word overlaps with diagram bbox
+        if (
+            word_x0 < diagram_x1
+            and word_x1 > diagram_x0
+            and word_top < diagram_bottom
+            and word_bottom > diagram_top
+        ):
+            return True
+
+    return False
+
+
+def _filter_text_excluding_diagrams(
+    text: str,
+    words: List[Dict],
+    diagram_bboxes: List[Tuple[float, float, float, float]],
+) -> Tuple[str, List[Dict]]:
+    """
+    Filter out text that falls within diagram bounding boxes.
+
+    Args:
+        text: Original extracted text
+        words: List of word dictionaries
+        diagram_bboxes: List of diagram bounding boxes to exclude
+
+    Returns:
+        Tuple of (filtered_text, filtered_words)
+    """
+    if not diagram_bboxes or not words:
+        return text, words
+
+    # Filter words that are not in diagrams
+    filtered_words = [w for w in words if not _is_word_in_diagram(w, diagram_bboxes)]
+
+    # Reconstruct text from filtered words
+    if not filtered_words:
+        return "", []
+
+    # Group words by approximate line (words with similar 'top' values)
+    lines = []
+    current_line = [filtered_words[0]]
+    current_y = filtered_words[0].get("top", 0)
+
+    for word in filtered_words[1:]:
+        word_y = word.get("top", 0)
+        # If word is on roughly the same line (within 5 points)
+        if abs(word_y - current_y) < 5:
+            current_line.append(word)
+        else:
+            # New line
+            lines.append(current_line)
+            current_line = [word]
+            current_y = word_y
+
+    if current_line:
+        lines.append(current_line)
+
+    # Reconstruct text from lines
+    text_lines = []
+    for line in lines:
+        # Sort words in line by x position
+        line_sorted = sorted(line, key=lambda w: w.get("x0", 0))
+        line_text = " ".join(w["text"] for w in line_sorted)
+        text_lines.append(line_text)
+
+    filtered_text = "\n".join(text_lines)
+
+    return filtered_text, filtered_words
+
+
 def _process_page_content(
     page, page_num: int, output_folder: Optional[str], global_counter: int
 ) -> Tuple[str, List[Dict], int]:
@@ -644,9 +735,18 @@ def _process_page_content(
         visuals_with_pos, global_counter
     )
 
-    # Extract text
+    # Get diagram bounding boxes to exclude their text
+    diagram_bboxes = [
+        v[1]["bbox"] for v in visuals_with_pos if v[1]["type"] == "diagram"
+    ]
+
+    # Extract text and words
     text = page.extract_text()
     words = page.extract_words() if text else []
+
+    # Filter out text that falls within diagrams
+    if diagram_bboxes:
+        text, words = _filter_text_excluding_diagrams(text, words, diagram_bboxes)
 
     # Format page with visuals
     if text or visual_refs:
