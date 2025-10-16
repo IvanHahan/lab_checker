@@ -386,8 +386,8 @@ def _calculate_line_y_position(line: str, words: List[Dict]) -> Optional[float]:
     """
     Calculate the average vertical position of a text line.
 
-    Uses a more robust matching algorithm that checks word sequences
-    rather than just individual word presence to avoid false matches.
+    Optimized algorithm that uses the first few distinctive words to locate
+    the line, then validates with vertical proximity.
 
     Args:
         line: Text line to analyze
@@ -400,51 +400,84 @@ def _calculate_line_y_position(line: str, words: List[Dict]) -> Optional[float]:
         return None
 
     # Split line into words for matching
-    line_tokens = line.split()
+    line_tokens = [t.strip() for t in line.split() if t.strip()]
     if not line_tokens:
         return None
 
-    # Try to find a sequence of words that match the line tokens
-    # This avoids false matches from repeated words elsewhere on the page
-    best_match = []
-    best_match_score = 0
+    # Strategy: Find the first distinctive token (longer is better) and match from there
+    # This reduces search space dramatically
 
-    for i in range(len(words)):
-        # Try to match starting from position i
+    # Find the longest/most distinctive token to use as anchor
+    anchor_token_idx = 0
+    max_token_len = len(line_tokens[0])
+    for idx, token in enumerate(line_tokens):
+        if len(token) > max_token_len:
+            max_token_len = len(token)
+            anchor_token_idx = idx
+
+    anchor_token = line_tokens[anchor_token_idx]
+
+    # Find all occurrences of the anchor token
+    anchor_positions = []
+    for idx, word in enumerate(words):
+        word_text = word["text"].strip()
+        if (
+            word_text == anchor_token
+            or anchor_token in word_text
+            or word_text in anchor_token
+        ):
+            anchor_positions.append(idx)
+
+    if not anchor_positions:
+        return None
+
+    # For each anchor position, try to match surrounding context
+    best_match = []
+    best_score = 0
+
+    for anchor_idx in anchor_positions:
+        # Calculate the range of words to check
+        start_idx = max(0, anchor_idx - anchor_token_idx)
+        end_idx = min(len(words), start_idx + len(line_tokens) + 2)  # +2 for tolerance
+
         matched_words = []
         token_idx = 0
 
-        for j in range(i, len(words)):
+        for word_idx in range(start_idx, end_idx):
             if token_idx >= len(line_tokens):
                 break
 
-            # Check if current word matches current token
-            word_text = words[j]["text"].strip()
-            target_token = line_tokens[token_idx].strip()
+            word_text = words[word_idx]["text"].strip()
+            target_token = line_tokens[token_idx]
 
             if (
                 word_text == target_token
                 or target_token in word_text
                 or word_text in target_token
             ):
-                matched_words.append(words[j])
-                token_idx += 1
-
-                # If words are too far apart vertically, this is probably not the right match
-                if len(matched_words) > 1:
-                    y_diff = abs(matched_words[-1]["top"] - matched_words[-2]["top"])
-                    if (
-                        y_diff > 5
-                    ):  # Words on same line should be within ~5 points vertically
+                # Check vertical proximity to previously matched words
+                if matched_words:
+                    y_diff = abs(words[word_idx]["top"] - matched_words[-1]["top"])
+                    if y_diff > 5:  # Different line
                         break
-            elif len(matched_words) > 0:
-                # Non-matching word after we started matching - this sequence is done
+
+                matched_words.append(words[word_idx])
+                token_idx += 1
+            elif matched_words:
+                # Allow small gaps (e.g., punctuation might be separate)
+                if token_idx < len(line_tokens) - 1:
+                    continue
                 break
 
-        # Keep track of best match (most words matched)
-        if len(matched_words) > best_match_score:
-            best_match_score = len(matched_words)
+        # Score based on how many tokens we matched
+        score = len(matched_words)
+        if score > best_score:
+            best_score = score
             best_match = matched_words
+
+        # Early exit if we matched all tokens
+        if score == len(line_tokens):
+            break
 
     if not best_match:
         return None
