@@ -87,8 +87,8 @@ class AssignmentAgent:
 
                     content_entries.append(
                         {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/png;base64,{img_base64}"},
+                            "type": "input_image",
+                            "image_url": f"data:image/png;base64,{img_base64}",
                         }
                     )
             elif (
@@ -99,6 +99,6 @@ class AssignmentAgent:
                 # This is text content (not the captured groups from regex)
                 text_content = part.strip()
                 if text_content:
-                    content_entries.append({"type": "text", "text": text_content})
+                    content_entries.append({"type": "input_text", "text": text_content})
 
         return content_entries

@@ -63,16 +63,9 @@ class OpenAIModel(LLM):
     def _llm_type(self) -> str:
         return self.model
 
-    def _call(
-        self,
-        prompt: str,
-        stop: Optional[List[str]] = None,
-        image: Optional[Image.Image] = None,
-        text_format: Optional[Type] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
-        **kwargs: Any,
-    ) -> str:
-        """Send prompt to GPT-5 Nano via OpenAI Responses API."""
+    def _prepare_messages(
+        self, prompt: str, image: Optional[Image.Image] = None
+    ) -> List[dict]:
         if image is not None:
             if isinstance(image, str):
                 image = read_image_as_base64(image)
@@ -92,6 +85,21 @@ class OpenAIModel(LLM):
             ]
         else:
             messages = [{"role": "user", "content": prompt}]
+        return messages
+
+    def _call(
+        self,
+        prompt: str,
+        stop: Optional[List[str]] = None,
+        image: Optional[Image.Image] = None,
+        text_format: Optional[Type] = None,
+        messages: Optional[List[dict]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> str:
+        """Send prompt to GPT-5 Nano via OpenAI Responses API."""
+        if messages is None:
+            messages = self._prepare_messages(prompt, image)
         if text_format is not None:
             response = self.client.responses.parse(
                 model=self.model,
@@ -126,28 +134,12 @@ class OpenAIModel(LLM):
         stop: Optional[List[str]] = None,
         image: Optional[Image.Image] = None,
         run_manager: Optional[CallbackManagerForLLMRun] = None,
+        messages: Optional[List[dict]] = None,
         **kwargs: Any,
     ) -> Iterator[GenerationChunk]:
         """Stream responses from GPT-5 Nano via OpenAI Responses API."""
-        if image is not None:
-            if isinstance(image, str):
-                image = read_image_as_base64(image)
-            else:
-                image = image_to_base64(image)
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "input_text", "text": prompt},
-                        {
-                            "type": "input_image",
-                            "image_url": f"data:image/jpeg;base64,{image}",
-                        },
-                    ],
-                },
-            ]
-        else:
-            messages = [{"role": "user", "content": prompt}]
+        if messages is None:
+            messages = self._prepare_messages(prompt, image)
         stream = self.client.responses.create(
             model=self.model,
             input=messages,
