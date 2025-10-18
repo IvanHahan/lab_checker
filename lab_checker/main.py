@@ -17,6 +17,8 @@ if __name__ == "__main__":
     print("=" * 80)
     print("ASSIGNMENT ANALYSIS:")
     print("=" * 80)
+    with open("assignment_result.json", "w", encoding="utf-8") as f:
+        f.write(assignment_result)
     print(assignment_result)
     print("\n")
 
@@ -24,22 +26,15 @@ if __name__ == "__main__":
     work_agent = WorkAgent(llm)
     submission_pdf = "/Users/ivanhahanov/Projects/lab_checker/data/assignments/укрТПКС_2023_ЛБ_1/submissions/ЛБ1_Варіант14_Дорошенко Ю.С._КІУКІ-22-7.pdf"
 
-    # Parse assignment_result as JSON if it's a string
-    try:
-        if isinstance(assignment_result, str):
-            assignment_data = json.loads(assignment_result)
-        else:
-            assignment_data = assignment_result
-    except json.JSONDecodeError:
-        print("Warning: Could not parse assignment result as JSON, using raw result")
-        assignment_data = {"raw": assignment_result}
-
     work_result = work_agent.run(
-        assignment_data=assignment_data,
+        assignment_data=assignment_result,
         submission_pdf=submission_pdf,
         student_id="Дорошенко Ю.С.",
         assignment_id="укрТПКС_2023_ЛБ_1",
     )
+
+    with open("work_result.json", "w", encoding="utf-8") as f:
+        f.write(work_result)
 
     print("=" * 80)
     print("STUDENT WORK ANALYSIS:")

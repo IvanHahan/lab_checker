@@ -2,12 +2,13 @@ from pathlib import Path
 from typing import Optional
 
 from ..doc_parsing import parse_pdf
+from ..llm import OpenAIModel
 from ..message_utils import prepare_message_with_visuals
 from ..rlm import RecursiveLanguageModel
 
 
 class AssignmentAgent:
-    def __init__(self, llm, rlm: Optional[RecursiveLanguageModel] = None):
+    def __init__(self, llm: OpenAIModel, rlm: Optional[RecursiveLanguageModel] = None):
         self.llm = llm
         self.rlm = rlm or RecursiveLanguageModel(llm)
         self.system_prompt = self._load_prompt()
@@ -28,6 +29,7 @@ class AssignmentAgent:
         ]
         response = self.llm._call(
             messages=messages,
+            reasoning_effort="medium",
         )
         return response
 

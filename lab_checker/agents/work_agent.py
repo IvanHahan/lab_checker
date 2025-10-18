@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..doc_parsing import parse_pdf
+from ..llm import OpenAIModel
 from ..message_utils import prepare_message_with_visuals
 
 
@@ -12,7 +13,7 @@ class WorkAgent:
     what the student implemented for each task in the assignment.
     """
 
-    def __init__(self, llm):
+    def __init__(self, llm: OpenAIModel):
         self.llm = llm
         self.system_prompt = self._load_prompt()
 
@@ -71,19 +72,9 @@ class WorkAgent:
             {"role": "user", "content": message_content},
         ]
 
-        response = self.llm._call(messages=messages)
+        response = self.llm._call(messages=messages, reasoning_effort="medium")
 
-        # Parse the response (assuming it returns JSON)
-        try:
-            result = json.loads(response)
-        except json.JSONDecodeError:
-            # If the response is not valid JSON, wrap it in a structure
-            result = {
-                "error": "Failed to parse LLM response as JSON",
-                "raw_response": response,
-            }
-
-        return result
+        return response
 
     def _prepare_message_from_pdf(
         self,
