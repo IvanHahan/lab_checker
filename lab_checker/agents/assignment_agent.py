@@ -1,39 +1,37 @@
 import base64
 import re
 from io import BytesIO
+from pathlib import Path
+from typing import Optional
 
 from ..doc_parsing import parse_pdf
+from ..rlm import RecursiveLanguageModel
 
 
 class AssignmentAgent:
-    def __init__(self, llm):
+    def __init__(self, llm, rlm: Optional[RecursiveLanguageModel] = None):
         self.llm = llm
+        self.rlm = rlm or RecursiveLanguageModel(llm)
+        self.system_prompt = self._load_prompt()
+
+    def _load_prompt(self) -> str:
+        """Load the system prompt from the prompts directory."""
+        prompt_path = Path(__file__).parent.parent / "prompts" / "assignment_agent.md"
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            return f.read()
 
     def run(self, pdf: str):
         # Process the PDF to extract text and images
         parsed_content = parse_pdf(pdf)
         message_content = self._prepare_message(parsed_content)
         messages = [
-            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": message_content},
         ]
         response = self.llm._call(
-            prompt="Please analyze the following document content.",
             messages=messages,
         )
-
-        text = parsed_content["text"]
-        visuals = parsed_content.get("visuals", parsed_content.get("images", []))
-        page_count = parsed_content["page_count"]
-
-        # Here you can add logic to interact with the LLM using the extracted text and images
-        # For example, you might want to summarize the content or answer questions about it
-
-        return {
-            "text": text,
-            "visuals": visuals,
-            "page_count": page_count,
-        }
+        return response
 
     def _prepare_message(self, doc: dict) -> list:
         """
@@ -102,3 +100,23 @@ class AssignmentAgent:
                     content_entries.append({"type": "input_text", "text": text_content})
 
         return content_entries
+
+    def _extract_metadata(self, doc: dict) -> dict:
+        visuals = doc.get("visuals", doc.get("images", []))
+        visual_meta = []
+        for visual in visuals:
+            if not isinstance(visual, dict):
+                continue
+            visual_meta.append(
+                {
+                    "global_index": visual.get("global_index"),
+                    "type": visual.get("type"),
+                    "page": visual.get("page"),
+                    "description": visual.get("description"),
+                }
+            )
+
+        return {
+            "page_count": doc.get("page_count"),
+            "visual_tokens": visual_meta,
+        }

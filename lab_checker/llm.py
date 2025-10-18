@@ -89,7 +89,7 @@ class OpenAIModel(LLM):
 
     def _call(
         self,
-        prompt: str,
+        prompt: Optional[str] = None,
         stop: Optional[List[str]] = None,
         image: Optional[Image.Image] = None,
         text_format: Optional[Type] = None,
