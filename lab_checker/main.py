@@ -13,13 +13,9 @@ if __name__ == "__main__":
     assignment_agent = AssignmentAgent(llm)
     assignment_pdf = "/Users/ivanhahanov/Projects/lab_checker/data/assignments/укрТПКС_2023_ЛБ_1/укрТПКС_2023_ЛБ_1.pdf"
     assignment_result = assignment_agent.run(assignment_pdf)
-    print("=" * 80)
-    print("ASSIGNMENT ANALYSIS:")
-    print("=" * 80)
+
     with open("assignment_result.json", "w", encoding="utf-8") as f:
         f.write(assignment_result)
-    print(assignment_result)
-    print("\n")
 
     # Process the student submission
     work_agent = WorkAgent(llm)

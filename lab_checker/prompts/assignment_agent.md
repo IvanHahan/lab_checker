@@ -20,6 +20,7 @@ For each task/assignment identified, extract the following information:
 - **Description**: Complete description of what needs to be accomplished
 - **Requirements**: Specific technical and functional requirements
 - **Deliverables**: What the student must submit (code files, reports, diagrams, etc.)
+- **Variants**: If the task has multiple variants for different students (e.g., "Variant 1", "Variant 2-5", "Variant 14"), extract all variant specifications and their unique requirements
 
 #### Additional Context:
 - **Prerequisites**: Required knowledge, previous labs, or dependencies
@@ -50,9 +51,12 @@ Identify how each task will be assessed:
 
 ### 5. Visual Elements
 Interpret and describe visual elements:
-- Diagrams (architecture, flowcharts, UML, etc.)
-- Screenshots or mockups
-- Mathematical formulas or equations
+- **Diagrams** (architecture, flowcharts, UML, circuit diagrams, state machines, etc.)
+  - Describe what the diagram shows
+  - **Convert to Mermaid format inline**: Include the Mermaid text representation directly in the description using the format: `[Mermaid: <mermaid_code>]`
+  - Place the Mermaid representation wherever the diagram is referenced (in task description, variant description, requirements, etc.)
+- Screenshots or mockups - describe their content
+- Mathematical formulas or equations (use LaTeX notation when applicable)
 - Tables with specifications or data
 - Code examples or pseudocode
 
@@ -82,6 +86,17 @@ Structure your analysis as follows:
         "What to submit 1",
         "What to submit 2"
       ],
+      "variants": [
+        {
+          "variant_id": "Variant 1",
+          "description": "Specific requirements for this variant. Diagram shows circuit: [Mermaid: graph LR\n    A[Input] --> B[AND Gate]\n    B --> C[Output]]",
+          "unique_requirements": ["Variant-specific requirement 1"],
+          "parameters": {
+            "param1": "value1",
+            "param2": "value2"
+          }
+        }
+      ],
       "technical_specs": {
         "languages": ["Python", "etc."],
         "frameworks": ["framework1"],
@@ -105,7 +120,7 @@ Structure your analysis as follows:
       ],
       "visual_references": [
         "Description of Figure 1: ...",
-        "Description of Diagram 2: ..."
+        "Description of Diagram 2: ... [Mermaid: graph TD\n    A --> B]"
       ]
     }
   ],
@@ -145,7 +160,63 @@ Structure your analysis as follows:
   - Extract any specifications, labels, or annotations visible in the images
   - Describe how they relate to the task requirements
   - Identify any code, formulas, or technical details shown in the visuals
-  - Integrate information from images seamlessly with the surrounding text
+  - **Convert diagrams to Mermaid inline**: For technical diagrams, convert them to Mermaid format and embed the Mermaid code directly in the text where the diagram is described using `[Mermaid: <code>]` notation
+  - Integrate diagram information seamlessly within the relevant field (description, requirements, variant description, etc.)
+  - Place the Mermaid representation in context - where the diagram naturally appears in the document
+
+### Extract Student Variants
+- Many laboratory assignments have multiple variants (e.g., Variant 1-30) where each student receives slightly different parameters or requirements
+- **Identify all variants**: Look for sections labeled "Варіант", "Variant", "Option", numbered lists, or tables showing different student assignments
+- **Extract variant-specific information**: 
+  - Variant identifiers (numbers, ranges, or names)
+  - Unique parameters or values for each variant
+  - Variant-specific requirements or constraints
+  - Diagrams or specifications unique to certain variants
+- **Map variants to tasks**: Clearly indicate which task each variant applies to
+- If the document mentions "за варіантом" or "according to variant", this is a strong indicator that variants exist
+
+### Mermaid Diagram Conversion Guidelines
+When converting diagrams to Mermaid format:
+
+**Flowcharts**:
+```mermaid
+graph TD
+    A[Start] --> B{Decision?}
+    B -->|Yes| C[Action 1]
+    B -->|No| D[Action 2]
+    C --> E[End]
+    D --> E
+```
+
+**State Diagrams**:
+```mermaid
+stateDiagram-v2
+    [*] --> State1
+    State1 --> State2: Event
+    State2 --> [*]
+```
+
+**Sequence Diagrams**:
+```mermaid
+sequenceDiagram
+    Actor->>System: Request
+    System->>Database: Query
+    Database-->>System: Response
+    System-->>Actor: Result
+```
+
+**Circuit/Logic Diagrams**:
+```mermaid
+graph LR
+    Input1 --> AND1[AND Gate]
+    Input2 --> AND1
+    AND1 --> Output
+```
+
+- Preserve all labels, names, and relationships from the original diagram
+- Include all gates, components, signals, and connections
+- Maintain the logical flow and structure
+- Add comments in Mermaid if needed to clarify complex relationships
 
 ## Quality Checks
 
@@ -154,6 +225,10 @@ Before finalizing your analysis, verify:
 - [ ] No requirements or specifications were missed
 - [ ] Technical details are complete and accurate
 - [ ] Visual elements are properly interpreted and integrated
+- [ ] **All variants are identified and extracted** with their specific requirements
+- [ ] **Diagrams are converted to Mermaid format** and embedded inline in descriptions using `[Mermaid: <code>]` notation
+- [ ] Mermaid code is syntactically valid and accurately represents the original diagram
+- [ ] Diagrams are placed in context where they naturally appear (task description, variant description, requirements, etc.)
 - [ ] The output is well-structured and easy to parse
 - [ ] Cross-references between sections are resolved
 - [ ] Any variants or options are clearly distinguished
