@@ -3,6 +3,7 @@ import json
 from dotenv import load_dotenv
 
 from lab_checker.agents.assignment_agent import AssignmentAgent
+from lab_checker.agents.evaluation_agent import EvaluationAgent
 from lab_checker.agents.work_agent import WorkAgent
 from lab_checker.llm import OpenAIModel
 
@@ -40,3 +41,16 @@ if __name__ == "__main__":
     print("STUDENT WORK ANALYSIS:")
     print("=" * 80)
     print(json.dumps(work_result, indent=2, ensure_ascii=False))
+    print("\n")
+
+    # Evaluate the student submission
+    evaluation_agent = EvaluationAgent(llm)
+    evaluation_result = evaluation_agent.evaluate_from_results(
+        assignment_result=assignment_result,
+        work_result=work_result,
+        student_id="Дорошенко Ю.С.",
+        assignment_id="укрТПКС_2023_ЛБ_1",
+    )
+
+    with open("evaluation_result.json", "w", encoding="utf-8") as f:
+        f.write(evaluation_result, f, indent=2, ensure_ascii=False)
