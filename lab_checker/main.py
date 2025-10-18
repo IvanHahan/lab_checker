@@ -1,5 +1,3 @@
-import json
-
 from dotenv import load_dotenv
 
 from lab_checker.agents.assignment_agent import AssignmentAgent
@@ -37,12 +35,6 @@ if __name__ == "__main__":
     with open("work_result.json", "w", encoding="utf-8") as f:
         f.write(work_result)
 
-    print("=" * 80)
-    print("STUDENT WORK ANALYSIS:")
-    print("=" * 80)
-    print(json.dumps(work_result, indent=2, ensure_ascii=False))
-    print("\n")
-
     # Evaluate the student submission
     evaluation_agent = EvaluationAgent(llm)
     evaluation_result = evaluation_agent.evaluate_from_results(
@@ -53,4 +45,4 @@ if __name__ == "__main__":
     )
 
     with open("evaluation_result.json", "w", encoding="utf-8") as f:
-        f.write(evaluation_result, f, indent=2, ensure_ascii=False)
+        f.write(evaluation_result)
