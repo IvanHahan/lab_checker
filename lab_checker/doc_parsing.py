@@ -116,6 +116,54 @@ def extract_images_from_pdf(
     return images
 
 
+def load_pdf_pages_as_images(
+    file_path: str,
+    password: Optional[str] = None,
+    output_folder: Optional[str] = None,
+    dpi: int = 150,
+) -> List[Dict]:
+    """
+    Load each page of a PDF as an image.
+
+    Args:
+        file_path: Path to the PDF file
+        password: Optional password if the PDF is encrypted
+        output_folder: Optional folder to save page images
+        dpi: Resolution (DPI) for the converted images (default: 150)
+
+    Returns:
+        List of dictionaries containing:
+            - 'image': PIL Image object of the page
+            - 'page': Page number (1-indexed)
+            - 'width': Image width in pixels
+            - 'height': Image height in pixels
+
+    Raises:
+        FileNotFoundError: If the PDF file doesn't exist
+    """
+    page_images = []
+
+    with pdfplumber.open(file_path, password=password) as pdf:
+        for page_num, page in enumerate(pdf.pages):
+            # Convert page to image using pdfplumber's to_image method
+            page_image = page.to_image(resolution=dpi).original
+
+            image_info = {
+                "image": page_image,
+                "page": page_num + 1,
+                "width": page_image.width,
+                "height": page_image.height,
+            }
+            page_images.append(image_info)
+
+            if output_folder:
+                os.makedirs(output_folder, exist_ok=True)
+                img_path = f"{output_folder}/page_{page_num+1}.png"
+                page_image.save(img_path)
+
+    return page_images
+
+
 # ============================================================================
 # Image Extraction Functions
 # ============================================================================
