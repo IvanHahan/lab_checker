@@ -7,8 +7,7 @@ from lab_checker.llm import OpenAIModel
 
 if __name__ == "__main__":
     load_dotenv()
-    llm = OpenAIModel()
-
+    llm = OpenAIModel("gpt-5-nano")
     # Process the assignment specification
     assignment_agent = AssignmentAgent(llm)
     assignment_pdf = "/Users/ivanhahanov/Projects/lab_checker/data/assignments/укрТПКС_2023_ЛБ_1/укрТПКС_2023_ЛБ_1.pdf"
