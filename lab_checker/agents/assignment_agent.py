@@ -1,16 +1,16 @@
 from pathlib import Path
-from typing import Optional
 
 from ..doc_parsing import parse_pdf
 from ..llm import OpenAIModel
-from ..message_utils import prepare_message_with_visuals
-from ..rlm import RecursiveLanguageModel
+from ..message_utils import (
+    prepare_message_with_visuals,
+    process_chunks_with_accumulated_context,
+)
 
 
 class AssignmentAgent:
-    def __init__(self, llm: OpenAIModel, rlm: Optional[RecursiveLanguageModel] = None):
+    def __init__(self, llm: OpenAIModel):
         self.llm = llm
-        self.rlm = rlm or RecursiveLanguageModel(llm)
         self.system_prompt = self._load_prompt()
 
     def _load_prompt(self) -> str:
@@ -23,13 +23,31 @@ class AssignmentAgent:
         # Process the PDF to extract text and images
         parsed_content = parse_pdf(pdf)
         message_content = self._prepare_message(parsed_content)
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": message_content},
-        ]
-        response = self.llm._call(
-            messages=messages,
-            reasoning_effort="medium",
+
+        # Process chunks with accumulated context for long documents
+        chunk_context_instruction = (
+            "\n\n## Summary of Earlier Sections\n"
+            "Based on the previous parts of the assignment document, "
+            "the following tasks and information were already identified:\n"
+            "{accumulated_output}\n\n"
+            "Continue with the next section of the document, identifying additional tasks "
+            "and extracting any new requirements not mentioned in earlier sections."
+        )
+
+        combine_instruction = (
+            "\n\nYou have now reviewed the entire assignment document in sections. "
+            "Provide the final, complete output that consolidates all tasks, "
+            "requirements, and specifications from all sections. Ensure the output is "
+            "well-organized with all tasks properly grouped and no duplicates."
+        )
+
+        response = process_chunks_with_accumulated_context(
+            llm=self.llm,
+            system_prompt=self.system_prompt,
+            content_entries=message_content,
+            max_chars=3000,
+            chunk_context_instruction=chunk_context_instruction,
+            combine_instruction=combine_instruction,
         )
         return response
 
