@@ -1,7 +1,11 @@
 from enum import Enum
 from pathlib import Path
 
-from ..doc_parsing import parse_pdf
+from loguru import logger
+from tqdm import tqdm
+
+from ..doc_parsing import load_pdf_pages_as_images, parse_pdf
+from ..image_utils import crop_image_to_content
 from ..llm import OpenAIModel
 from ..message_utils import (
     prepare_message_with_visuals,
@@ -32,10 +36,19 @@ class AssignmentAgent:
         self.llm = llm
         self.processing_mode = processing_mode
         self.system_prompt = self._load_prompt()
+        self.image_parse_prompt = self._load_image_parse_prompt()
 
     def _load_prompt(self) -> str:
         """Load the system prompt from the prompts directory."""
         prompt_path = Path(__file__).parent.parent / "prompts" / "assignment_agent.md"
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    def _load_image_parse_prompt(self) -> str:
+        """Load the image parsing prompt from the prompts directory."""
+        prompt_path = (
+            Path(__file__).parent.parent / "prompts" / "pdf_image_to_markdown.md"
+        )
         with open(prompt_path, "r", encoding="utf-8") as f:
             return f.read()
 
@@ -110,26 +123,26 @@ class AssignmentAgent:
         Returns:
             Processed assignment information
         """
-        page_prompt = (
-            "You are processing page {page_num} of an assignment specification document.\n\n"
-            "Previous context from earlier pages:\n{context}\n\n"
-            "Analyze this page and identify all tasks, requirements, and specifications. "
-            "Focus on new information not covered in the previous sections. "
-            "Extract key points in a structured format."
-        )
+        pdf_images = load_pdf_pages_as_images(pdf)
+        parsed_images = []
+        for page in tqdm(pdf_images, desc="Processing PDF pages"):
+            # Crop image to content
+            cropped_image = crop_image_to_content(page["image"])
 
-        # Process all pages iteratively with accumulated context
-        results = self.llm.process_pdf_pages_iteratively(
-            pdf_path=pdf,
-            system_prompt=self.system_prompt,
-            page_prompt=page_prompt,
-            accumulate_context=True,
-            context_summary_interval=5,  # Summarize every 5 pages to keep context manageable
-        )
+            response = self.llm.invoke(
+                self.image_parse_prompt,
+                image=cropped_image,
+            )
+            parsed_images.append(response)
 
-        # Combine results from all pages
-        combined_response = self._combine_page_results(results)
-        return combined_response
+        doc_content = "\n\n".join(
+            [f"[Page {i+1}]: {r['response']}" for i, r in enumerate(parsed_images)]
+        )
+        logger.info("Processed all PDF pages into content.")
+        response = self.llm.invoke(
+            self.system_prompt + "\n\nPDF Content:\n" + doc_content,
+        )
+        return response
 
     def _combine_page_results(self, results: list) -> str:
         """
