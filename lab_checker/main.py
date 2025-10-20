@@ -21,10 +21,8 @@ if __name__ == "__main__":
     submission_pdf = "/Users/ivanhahanov/Projects/lab_checker/data/assignments/укрТПКС_2023_ЛБ_1/submissions/ЛБ1_Варіант14_Дорошенко Ю.С._КІУКІ-22-7.pdf"
 
     work_result = work_agent.run(
-        assignment_data=assignment_result,
+        assignment=assignment_result,
         submission_pdf=submission_pdf,
-        student_id="Дорошенко Ю.С.",
-        assignment_id="укрТПКС_2023_ЛБ_1",
     )
 
     with open("work_result.json", "w", encoding="utf-8") as f:

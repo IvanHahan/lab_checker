@@ -94,6 +94,7 @@ class OpenAIModel(LLM):
         image: Optional[Image.Image] = None,
         text_format: Optional[Type] = None,
         messages: Optional[List[dict]] = None,
+        tools: Optional[List[Any]] = [],
         run_manager: Optional[CallbackManagerForLLMRun] = None,
         **kwargs: Any,
     ) -> str:
@@ -109,6 +110,7 @@ class OpenAIModel(LLM):
                     "effort": kwargs.pop("reasoning_effort", self.reasoning_effort)
                 },
                 text_format=text_format,
+                tools=tools,
                 **kwargs,
             )
             output = response.output_parsed
@@ -120,6 +122,7 @@ class OpenAIModel(LLM):
                 reasoning={
                     "effort": kwargs.pop("reasoning_effort", self.reasoning_effort)
                 },
+                tools=tools,
                 **kwargs,
             )
             output = response.output_text.strip()
