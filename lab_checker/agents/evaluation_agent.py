@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from ..message_utils import process_chunks_with_accumulated_context
+
 
 class EvaluationAgent:
     """
@@ -45,13 +47,32 @@ class EvaluationAgent:
             assignment_data, work_analysis, student_id, assignment_id
         )
 
-        # Call the LLM with system prompt and user message
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": user_message},
-        ]
+        # Convert string message to content entries for chunk processing
+        message_content = [{"type": "input_text", "text": user_message}]
 
-        response = self.llm._call(messages=messages, reasoning_effort="medium")
+        # Process chunks with accumulated context for long documents
+        chunk_context_instruction = (
+            "\n\n## Summary of Earlier Sections\n"
+            "Based on evaluation of earlier tasks, the following results were already determined:\n"
+            "{accumulated_output}\n\n"
+            "Continue evaluating the remaining tasks, building upon the assessment provided above."
+        )
+
+        combine_instruction = (
+            "\n\nYou have now evaluated all tasks in the submission. "
+            "Provide the final, comprehensive evaluation output that consolidates all scores, "
+            "feedback, and recommendations from evaluating all tasks. Ensure the output is "
+            "well-structured with no duplicates and includes overall scoring and summary."
+        )
+
+        response = process_chunks_with_accumulated_context(
+            llm=self.llm,
+            system_prompt=self.system_prompt,
+            content_entries=message_content,
+            max_chars=3000,
+            chunk_context_instruction=chunk_context_instruction,
+            combine_instruction=combine_instruction,
+        )
 
         return response
 

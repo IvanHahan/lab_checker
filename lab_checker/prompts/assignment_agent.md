@@ -68,7 +68,6 @@ Structure your analysis as follows:
   "document_metadata": {
     "title": "Laboratory specification title",
     "course": "Course name/code",
-    "academic_period": "Semester/year if available",
     "total_tasks": "Number of distinct tasks",
   },
   "tasks": [

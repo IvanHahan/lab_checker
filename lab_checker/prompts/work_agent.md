@@ -83,58 +83,24 @@ Structure your analysis as follows:
 ```json
 {
   "submission_metadata": {
-    "student_id": "student identifier if available",
-    "assignment_id": "assignment identifier",
+    "student_name": "Name of the Student",
+    "student_group": "Student Group",
+    "course": "Course name/code",
+    "total_tasks": "Number of distinct tasks",
+    "variant": "assignment variant",
     "submission_date": "if available in files",
-    "total_files": "number of files submitted",
-    "file_list": ["file1.py", "file2.txt", "..."]
   },
   "task_answers": [
     {
       "task_id": "matching the assignment task ID",
       "task_title": "task title from assignment",
       "status": "not_attempted | partial | complete",
-      "submitted_files": [
-        "file1.py",
-        "file2.py"
+      "input_data": [
+        "Any input data given for the task",
       ],
       "implementation_summary": "High-level description of what the student implemented",
-      "key_components": {
-        "functions": ["function1()", "function2()"],
-        "classes": ["Class1", "Class2"],
-        "modules": ["module1.py"],
-        "other": ["description of other components"]
-      },
-      "technical_details": {
-        "approach": "Description of the student's approach",
-        "algorithms": ["Algorithm names or descriptions"],
-        "data_structures": ["List", "Dictionary", "Custom class"],
-        "libraries_used": ["numpy", "pandas", "etc."]
-      },
-      "functionality": {
-        "features_implemented": [
-          "Feature 1: description",
-          "Feature 2: description"
-        ],
-        "input_handling": "How input is handled",
-        "output_handling": "How output is produced",
-        "error_handling": "Description of error handling"
-      },
-      "documentation": {
-        "code_comments": "Summary of code comments",
-        "docstrings": "Presence and quality of docstrings",
-        "readme_content": "Summary of README if present",
-        "report_content": "Summary of any written report",
-        "explanations": "Student's explanations of their work"
-      },
-      "testing": {
-        "test_files_present": true/false,
-        "test_cases": ["Description of test cases if present"],
-        "test_results": "Summary of test results if available"
-      },
       "code_excerpts": {
-        "main_function": "Key code excerpt showing main implementation",
-        "other_notable": "Other important code excerpts"
+        "filename": "Key code excerpt"
       },
       "deviations_from_requirements": [
         "How the submission differs from requirements"

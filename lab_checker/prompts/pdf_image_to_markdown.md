@@ -15,21 +15,7 @@ Convert the PDF image to Markdown format. Follow these rules strictly:
   - `|` for table formatting
 
 ## Diagrams and Visual Elements
-Convert any diagrams, charts, or visual elements to Mermaid syntax:
-- Flowcharts: Use `graph TD`
-- Sequence diagrams: Use `sequenceDiagram`
-- State diagrams: Use `stateDiagram`
-- ER diagrams: Use `erDiagram`
-- Gantt charts: Use `gantt`
-- Class diagrams: Use `classDiagram`
-- Tables and charts: Use text representation or Mermaid syntax
-
-Wrap diagrams in code blocks:
-```
-\`\`\`mermaid
-[diagram code]
-\`\`\`
-```
+Discribe any diagrams or visuals in text, pseudo-code or mermaid syntax (what better fits).
 
 ## Output Rules
 - Output ONLY the extracted Markdown content
