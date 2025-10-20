@@ -1,5 +1,6 @@
 from enum import Enum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from loguru import logger
 from tqdm import tqdm
@@ -11,6 +12,9 @@ from ..message_utils import (
     prepare_message_with_visuals,
     process_chunks_with_accumulated_context,
 )
+
+if TYPE_CHECKING:
+    from PIL import Image
 
 
 class ProcessingMode(Enum):
@@ -25,6 +29,7 @@ class AssignmentAgent:
         self,
         llm: OpenAIModel,
         processing_mode: ProcessingMode = ProcessingMode.IMAGES,
+        output_dir: str | None = None,
     ):
         """
         Initialize the AssignmentAgent.
@@ -32,11 +37,13 @@ class AssignmentAgent:
         Args:
             llm: OpenAI language model instance
             processing_mode: How to process PDFs (PARSED or IMAGES)
+            output_dir: Optional directory to save parsed pages and markdown files
         """
         self.llm = llm
         self.processing_mode = processing_mode
         self.system_prompt = self._load_prompt()
         self.image_parse_prompt = self._load_image_parse_prompt()
+        self.output_dir = Path(output_dir) if output_dir else None
 
     def _load_prompt(self) -> str:
         """Load the system prompt from the prompts directory."""
@@ -51,6 +58,59 @@ class AssignmentAgent:
         )
         with open(prompt_path, "r", encoding="utf-8") as f:
             return f.read()
+
+    def _setup_output_directory(self, pdf_path: str) -> Path:
+        """
+        Create output directory structure for saving parsed pages.
+
+        Args:
+            pdf_path: Path to the input PDF file
+
+        Returns:
+            Path to the output directory
+        """
+        if not self.output_dir:
+            return None
+
+        # Create directory structure: output_dir/pdf_name/pages/
+        pdf_name = Path(pdf_path).stem
+        pages_dir = self.output_dir / pdf_name / "pages"
+        pages_dir.mkdir(parents=True, exist_ok=True)
+
+        logger.info(f"Created output directory: {pages_dir}")
+        return pages_dir
+
+    def _save_page(
+        self,
+        page_num: int,
+        cropped_image: "Image.Image",
+        markdown_content: str,
+        output_dir: Path,
+    ) -> None:
+        """
+        Save a parsed page with its image and markdown content.
+
+        Args:
+            page_num: Page number (1-indexed)
+            cropped_image: Cropped PIL Image object
+            markdown_content: Parsed markdown content
+            output_dir: Directory to save files to
+        """
+        if not output_dir:
+            return
+
+        # Save image
+        image_filename = f"page_{page_num:03d}.png"
+        image_path = output_dir / image_filename
+        cropped_image.save(image_path)
+
+        # Save markdown
+        md_filename = f"page_{page_num:03d}.md"
+        md_path = output_dir / md_filename
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(markdown_content)
+
+        logger.debug(f"Saved page {page_num}: {image_path} and {md_path}")
 
     def run(self, pdf: str) -> str:
         """
@@ -123,9 +183,12 @@ class AssignmentAgent:
         Returns:
             Processed assignment information
         """
-        pdf_images = load_pdf_pages_as_images(pdf)
+        # Setup output directory if specified
+        output_dir = self._setup_output_directory(pdf)
+
+        pdf_images = load_pdf_pages_as_images(pdf)[10:]
         parsed_images = []
-        for page in tqdm(pdf_images, desc="Processing PDF pages"):
+        for i, page in enumerate(tqdm(pdf_images, desc="Processing PDF pages"), 1):
             # Crop image to content
             cropped_image = crop_image_to_content(page["image"])
 
@@ -135,8 +198,12 @@ class AssignmentAgent:
             )
             parsed_images.append(response)
 
+            # Save page if output directory is set
+            if output_dir:
+                self._save_page(i, cropped_image, response, output_dir)
+
         doc_content = "\n\n".join(
-            [f"[Page {i+1}]: {r['response']}" for i, r in enumerate(parsed_images)]
+            [f"[Page {i+1}]: {r}" for i, r in enumerate(parsed_images)]
         )
         logger.info("Processed all PDF pages into content.")
         response = self.llm.invoke(

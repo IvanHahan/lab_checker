@@ -9,7 +9,7 @@ if __name__ == "__main__":
     load_dotenv()
     llm = OpenAIModel("gpt-5-nano")
     # Process the assignment specification
-    assignment_agent = AssignmentAgent(llm)
+    assignment_agent = AssignmentAgent(llm, output_dir="./output")
     assignment_pdf = "/Users/ivanhahanov/Projects/lab_checker/data/assignments/укрТПКС_2023_ЛБ_1/укрТПКС_2023_ЛБ_1.pdf"
     assignment_result = assignment_agent.run(assignment_pdf)
 
