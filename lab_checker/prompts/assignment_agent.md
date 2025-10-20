@@ -20,7 +20,6 @@ For each task/assignment identified, extract the following information:
 - **Description**: Complete description of what needs to be accomplished
 - **Requirements**: Specific technical and functional requirements
 - **Deliverables**: What the student must submit (code files, reports, diagrams, etc.)
-- **Variants**: If the task has multiple variants for different students (e.g., "Variant 1", "Variant 2-5", "Variant 14"), extract all variant specifications and their unique requirements
 
 #### Additional Context:
 - **Prerequisites**: Required knowledge, previous labs, or dependencies
@@ -71,7 +70,6 @@ Structure your analysis as follows:
     "course": "Course name/code",
     "academic_period": "Semester/year if available",
     "total_tasks": "Number of distinct tasks",
-    "page_count": "Number of pages analyzed"
   },
   "tasks": [
     {
@@ -82,20 +80,12 @@ Structure your analysis as follows:
         "Requirement 1",
         "Requirement 2"
       ],
+      "input_data": [
+        "Given data for task 1"
+      ],
       "deliverables": [
         "What to submit 1",
         "What to submit 2"
-      ],
-      "variants": [
-        {
-          "variant_id": "Variant 1",
-          "description": "Specific requirements for this variant. Diagram shows circuit: [Mermaid: graph LR\n    A[Input] --> B[AND Gate]\n    B --> C[Output]]",
-          "unique_requirements": ["Variant-specific requirement 1"],
-          "parameters": {
-            "param1": "value1",
-            "param2": "value2"
-          }
-        }
       ],
       "technical_specs": {
         "languages": ["Python", "etc."],
@@ -147,7 +137,6 @@ Structure your analysis as follows:
 ### Be Contextual
 - Understand how tasks relate to each other
 - Identify sequential dependencies (Task B requires completing Task A)
-- Recognize variants or different options students might choose
 
 ### Handle Ambiguity
 - If requirements are unclear, note the ambiguity explicitly
@@ -164,16 +153,6 @@ Structure your analysis as follows:
   - Integrate diagram information seamlessly within the relevant field (description, requirements, variant description, etc.)
   - Place the Mermaid representation in context - where the diagram naturally appears in the document
 
-### Extract Student Variants
-- Many laboratory assignments have multiple variants (e.g., Variant 1-30) where each student receives slightly different parameters or requirements
-- **Identify all variants**: Look for sections labeled "Варіант", "Variant", "Option", numbered lists, or tables showing different student assignments
-- **Extract variant-specific information**: 
-  - Variant identifiers (numbers, ranges, or names)
-  - Unique parameters or values for each variant
-  - Variant-specific requirements or constraints
-  - Diagrams or specifications unique to certain variants
-- **Map variants to tasks**: Clearly indicate which task each variant applies to
-- If the document mentions "за варіантом" or "according to variant", this is a strong indicator that variants exist
 
 ### Mermaid Diagram Conversion Guidelines
 When converting diagrams to Mermaid format:
@@ -225,13 +204,11 @@ Before finalizing your analysis, verify:
 - [ ] No requirements or specifications were missed
 - [ ] Technical details are complete and accurate
 - [ ] Visual elements are properly interpreted and integrated
-- [ ] **All variants are identified and extracted** with their specific requirements
 - [ ] **Diagrams are converted to Mermaid format** and embedded inline in descriptions using `[Mermaid: <code>]` notation
 - [ ] Mermaid code is syntactically valid and accurately represents the original diagram
 - [ ] Diagrams are placed in context where they naturally appear (task description, variant description, requirements, etc.)
 - [ ] The output is well-structured and easy to parse
 - [ ] Cross-references between sections are resolved
-- [ ] Any variants or options are clearly distinguished
 
 ## Error Handling
 
