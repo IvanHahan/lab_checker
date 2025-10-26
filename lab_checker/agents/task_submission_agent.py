@@ -1,201 +1,95 @@
-"""Task submission agent for comprehensive analysis of student work for specific tasks."""
+"""Task extraction agent for analyzing student submissions for specific tasks."""
 
-import json
-from typing import Any, Dict, List
-
-from lab_checker.message_utils import prepare_message_with_visuals
+from typing import Any, Dict
 
 from ..chains import chain_json_with_thinking
-from ..doc_parsing import parse_pdf
 from ..llm import OpenAIModel
 
 
 class TaskSubmissionAgent:
     """
-    Agent responsible for comprehensive analysis of student submissions for specific tasks.
-    This agent combines task requirements with student implementation to provide
-    detailed analysis of what was submitted.
+    Agent responsible for extracting what a student implemented for a specific task
+    from their submission. This agent focuses on identifying task-specific content
+    and implementation details.
     """
 
     def __init__(self, llm: OpenAIModel):
         self.llm = llm
 
-    def analyze_task_submission(
-        self,
-        submission_pdf: str,
-        task: Dict[str, Any],
-        assignment_context: Dict[str, Any] = None,
+    def extract_task_submission(
+        self, submission_content: Dict[str, Any], task: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Analyze student submission for a specific task.
+        Extract student's implementation for a specific task from their submission.
 
         Args:
-            submission_pdf: Path to submission PDF file
+            submission_content: Parsed submission content (text and visuals)
             task: Task specification from assignment
-            assignment_context: Additional assignment context if available
 
         Returns:
-            Dictionary containing comprehensive task submission analysis
+            Dictionary containing task-specific submission analysis
         """
-        # Parse the submission PDF
-        submission_content = parse_pdf(submission_pdf)
-
-        # Prepare messages for the LLM
-        messages = self._prepare_submission_messages(
-            submission_content, task, assignment_context
+        response = chain_json_with_thinking(self.llm).invoke(
+            self.EXTRACT_TASK_PROMPT.format(
+                pdf_content=submission_content["text"], task_description=task
+            )
         )
-
-        # Get analysis from LLM
-        response = chain_json_with_thinking(self.llm).invoke("", messages=messages)
 
         return response
 
-    def _prepare_submission_messages(
-        self,
-        submission_content: Dict[str, Any],
-        task: Dict[str, Any],
-        assignment_context: Dict[str, Any] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Prepare messages for LLM analysis including visual content.
-
-        Args:
-            submission_content: Parsed submission content
-            task: Task specification
-            assignment_context: Additional assignment context
-
-        Returns:
-            List of formatted messages for LLM
-        """
-        # Prepare visual content
-        message_content = prepare_message_with_visuals(
-            submission_content["text"],
-            submission_content.get("visuals", {}),
-        )
-
-        # Prepare system prompt with task and context
-        system_prompt = self.TASK_SUBMISSION_ANALYSIS_PROMPT.format(
-            task_description=json.dumps(task, ensure_ascii=False),
-            assignment_context=(
-                json.dumps(assignment_context, ensure_ascii=False)
-                if assignment_context
-                else "No additional context"
-            ),
-        )
-
-        messages = [
-            {
-                "role": "system",
-                "content": system_prompt,
-            },
-            {
-                "role": "user",
-                "content": message_content,
-            },
-        ]
-
-        return messages
-
-    def save_analysis(
-        self, analysis_data: Dict[str, Any], task_index: int, output_dir: str = "."
+    def save_task_submission(
+        self, task_data: Dict[str, Any], task_index: int, output_dir: str = "."
     ) -> None:
         """
-        Save task submission analysis to a JSON file.
+        Save extracted task submission data to a JSON file.
 
         Args:
-            analysis_data: Analysis data from analyze_task_submission
+            task_data: Task submission data from extract_task_submission
             task_index: Index of the task (for filename generation)
-            output_dir: Directory where to save the analysis JSON file
+            output_dir: Directory where to save the task JSON file
         """
-        output_path = f"{output_dir}/task_{task_index}_submission.json"
+        output_path = f"{output_dir}/task_{task_index}.json"
         with open(output_path, "w") as f:
-            f.write(analysis_data.model_dump_json(indent=2, ensure_ascii=False))
+            f.write(task_data.model_dump_json(indent=2, ensure_ascii=False))
 
     @property
-    def TASK_SUBMISSION_ANALYSIS_PROMPT(self) -> str:
-        """Prompt template for comprehensive task submission analysis."""
+    def EXTRACT_TASK_PROMPT(self) -> str:
+        """Prompt template for task extraction from submission."""
         return """
-# Task Submission Analysis Prompt
-
-You are an expert at analyzing student laboratory submissions for specific tasks.
-Your role is to comprehensively examine what a student has submitted for a particular task
-and provide detailed analysis of their implementation, approach, and completeness.
+# Task Extraction Prompt
+You are an expert at analyzing laboratory assignment specifications.
+Your task is to analyze given task specification and extract all the context from student submission that is relevant to the specific task.
 
 ## Task Specification:
 {task_description}
 
-## Assignment Context:
-{assignment_context}
-
-## Analysis Guidelines:
-
-### 1. Task Understanding
-- Analyze the task requirements and deliverables
-- Understand what the student was supposed to implement
-- Identify any variant-specific requirements
-
-### 2. Submission Analysis
-- Extract what the student actually implemented
-- Identify code structures, algorithms, and approaches used
-- Analyze documentation and comments
-- Review any visual elements (diagrams, screenshots, etc.)
-
-### 3. Implementation Assessment
-- Compare implementation against requirements
-- Identify completed vs missing elements
-- Note any extra features or creative solutions
-- Assess code quality and organization
+## PDF Content:
+{pdf_content}
 
 You must structure your response in the following JSON format:
 {{
-    "task_understanding": {{
-        "task_name": "<Task name/identifier>",
-        "requirements_summary": "<Summary of what was required>",
-        "variant_requirements": "<Specific variant requirements if any>",
-        "expected_deliverables": ["<List of expected outputs>"]
-    }},
-    "implementation_analysis": {{
-        "status": "<not_attempted|partial|complete>",
-        "implemented_features": ["<List of implemented features>"],
-        "implementation_approach": "<Description of student's approach>",
-        "code_excerpts": ["<Relevant code snippets>"],
-        "algorithms_used": ["<Algorithms or techniques identified>"],
-        "data_structures": ["<Data structures used>"]
-    }},
-    "quality_assessment": {{
-        "code_organization": "<Assessment of code structure>",
-        "naming_conventions": "<Assessment of variable/function names>",
-        "documentation_level": "<poor|fair|good|excellent>",
-        "error_handling": "<Description of error handling if present>",
-        "testing_evidence": "<Evidence of testing if any>"
-    }},
-    "visual_elements": [
-        {{
-            "type": "<diagram|screenshot|chart|etc>",
-            "description": "<What the visual shows>",
-            "relevance": "<How it relates to the task>",
-            "tag": "<<Visual reference tag>>"
-        }}
-    ],
-    "completeness_analysis": {{
-        "completed_requirements": ["<Requirements that were met>"],
-        "missing_elements": ["<Requirements not addressed>"],
-        "extra_features": ["<Additional features beyond requirements>"],
-        "deviations": ["<Any deviations from specified approach>"]
-    }},
-    "observations": ["<Additional notes about the submission>"]
+    "variant_requirements": "<Variant Specific Requirements>",
+    "implemented_solution": "<Detailed description of what the student implemented>",
+    "code_excerpts": ["<Relevant code excerpts from the submission>"],
+    "visual_references": [
+        {{"tag": "<<Image/Diagram Tag with brackets>>", "description": "<Description of relevance>"}},
+        ...
+    ]
 }}
 
 ## Guidelines:
-- Be thorough in analyzing both code and documentation
-- Pay attention to visual elements and their relevance to the task
-- Assess implementation quality objectively
-- Note both strengths and weaknesses in the submission
-- Identify creative solutions or alternative approaches
-- Be precise about what is present vs missing
-- NEVER make up information not present in the submission
+- Analyze given task specification and what is required to be implemented.
+- Identify the content relevant to the specific task.
+- Analyze what the student has actually implemented for the task.
+- Extract ONLY relevant code excerpts and visual references from the submission related to the task.
+- Ensure the final output is valid JSON adhering to the specified structure.
+- NEVER make up any information. If something is not present in the submission, indicate it as such.
 
-## Response Template (strict - include all tags):
-<reasoning>Step-by-step analysis process with numbered points (10 steps max, <=25 words each)</reasoning>
-<result>analysis_json</result>
+## Response Template (strictly follow):
+<reasoning>
+Step-by-step thought process with numbered points (8 steps max, <=20 words each)
+</reasoning>
+<result>
+task_json
+</result>
 """

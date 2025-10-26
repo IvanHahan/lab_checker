@@ -220,9 +220,13 @@ You must structure your evaluation in the following JSON format:
 - Ensure the final output is valid JSON adhering to the specified structure.
 - NEVER make up any information. If something is not present in the context, indicate it as such.
 
-## Response Template (strict - include start/end tags):
-<reasoning>Step-by-step thought process with numbered points (8 steps max, <=20 words each)</reasoning>
-<result>evaluation_json</result>
+## Response Template (strictly follow):
+<reasoning>
+Step-by-step thought process with numbered points (8 steps max, <=20 words each)
+</reasoning>
+<result>
+evaluation_json
+</result>
 
 ## Student Visual References:
 """

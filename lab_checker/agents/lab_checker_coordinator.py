@@ -1,16 +1,14 @@
 """Coordinator agent that orchestrates the specialized agents for lab checking workflow."""
 
 import json
-import os
 from typing import Any, Dict, Optional
 
 from loguru import logger
 
 from ..doc_parsing import parse_pdf
 from ..llm import OpenAIModel
-from .assignment_extraction_agent import AssignmentExtractionAgent
+from .assignment_agent import AssignmentAgent
 from .evaluation_agent import TaskEvaluationAgent
-from .task_extraction_agent import TaskExtractionAgent
 from .task_submission_agent import TaskSubmissionAgent
 
 
@@ -27,8 +25,7 @@ class LabCheckerCoordinator:
 
         # Initialize specialized agents
         logger.debug("Initializing specialized agents")
-        self.assignment_extraction_agent = AssignmentExtractionAgent(slm)
-        self.task_extraction_agent = TaskExtractionAgent(slm)
+        self.assignment_extraction_agent = AssignmentAgent(slm)
         self.task_submission_agent = TaskSubmissionAgent(slm)
         self.evaluation_agent = TaskEvaluationAgent(llm)
         logger.info("LabCheckerCoordinator initialized successfully")
@@ -61,16 +58,19 @@ class LabCheckerCoordinator:
 
         # Step 1: Extract or load assignment structure
         logger.info("Step 1: Extracting/loading assignment structure")
-        assignment_data = self._get_assignment_data(
-            assignment_pdf, use_comprehensive_analysis, output_dir
+        assignment_data = self.assignment_extraction_agent.extract_assignment(
+            assignment_pdf
         )
+
+        with open(f"{output_dir}/assignment.json", "w") as f:
+            f.write(assignment_data.model_dump_json(indent=2, ensure_ascii=False))
 
         if not assignment_data:
             logger.error("Could not extract or load assignment data")
             raise ValueError("Could not extract or load assignment data")
 
         # Extract tasks from the assignment data
-        tasks = assignment_data["result"]["tasks"]
+        tasks = assignment_data.result["tasks"]
         logger.info(f"Found {len(tasks)} tasks in assignment")
 
         # Step 2: Parse submission PDF
@@ -93,48 +93,33 @@ class LabCheckerCoordinator:
 
             # Extract task-specific submission content
             logger.debug(f"Extracting submission content for task {i + 1}")
-            task_extraction = self.task_extraction_agent.extract_task_submission(
+            task_submission = self.task_submission_agent.extract_task_submission(
                 submission_content, task
             )
 
-            # Save task extraction
-            logger.debug(f"Saving task extraction for task {i + 1}")
-            self.task_extraction_agent.save_task_submission(
-                task_extraction, i, output_dir
-            )
-
-            # Comprehensive task submission analysis
-            logger.debug(f"Analyzing task submission for task {i + 1}")
-            task_analysis = self.task_submission_agent.analyze_task_submission(
-                submission_pdf, task, assignment_data
-            )
-
-            # Save task analysis
-            logger.debug(f"Saving task analysis for task {i + 1}")
-            self.task_submission_agent.save_analysis(task_analysis, i, output_dir)
+            # Save task submission
+            logger.debug(f"Saving task submission for task {i + 1}")
+            with open(f"{output_dir}/task_{i + 1}_submission.json", "w") as f:
+                f.write(task_submission.model_dump_json(indent=2, ensure_ascii=False))
 
             # Evaluate task submission
             logger.debug(f"Evaluating task submission for task {i + 1}")
             evaluation = self.evaluation_agent.evaluate_task_submission(
                 task,
-                (
-                    task_extraction.result
-                    if hasattr(task_extraction, "result")
-                    else task_extraction
-                ),
+                task_submission.result,
                 submission_content.get("visuals", {}),
             )
 
             # Save evaluation
             logger.debug(f"Saving evaluation for task {i + 1}")
-            self.evaluation_agent.save_evaluation(evaluation, i, output_dir)
+            with open(f"{output_dir}/task_{i + 1}_evaluation.json", "w") as f:
+                f.write(evaluation.model_dump_json(indent=2, ensure_ascii=False))
 
             task_results.append(
                 {
                     "task_index": i,
                     "task": task,
-                    "extraction": task_extraction,
-                    "analysis": task_analysis,
+                    "extraction": task_submission,
                     "evaluation": evaluation,
                 }
             )
@@ -178,40 +163,6 @@ class LabCheckerCoordinator:
         self._save_final_results(final_results, output_dir)
 
         return final_results
-
-    def _get_assignment_data(
-        self, assignment_pdf: Optional[str], use_comprehensive: bool, output_dir: str
-    ) -> Dict[str, Any]:
-        """Get assignment data either from existing file or by extraction."""
-        assignment_file = f"{output_dir}/assignment.json"
-
-        # Check if assignment.json already exists
-        if os.path.exists(assignment_file):
-            logger.info(f"Loading existing assignment data from {assignment_file}")
-            with open(assignment_file, "r") as f:
-                return json.load(f)
-
-        # Extract assignment data if PDF is provided
-        if assignment_pdf:
-            logger.info(f"Extracting assignment data from {assignment_pdf}")
-            assignment_data = self.assignment_extraction_agent.extract_assignment(
-                assignment_pdf
-            )
-            logger.debug(f"Saving assignment data to {assignment_file}")
-            self.assignment_extraction_agent.save_assignment(
-                assignment_data, assignment_file
-            )
-
-            return (
-                assignment_data.result
-                if hasattr(assignment_data, "result")
-                else assignment_data
-            )
-
-        logger.warning(
-            "No assignment PDF provided and no existing assignment.json found"
-        )
-        return None
 
     def _is_task_completed(self, task_result: Dict[str, Any]) -> bool:
         """Check if a task is completed based on evaluation."""

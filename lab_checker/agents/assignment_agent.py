@@ -8,7 +8,7 @@ from ..doc_parsing import parse_pdf
 from ..llm import OpenAIModel
 
 
-class AssignmentExtractionAgent:
+class AssignmentAgent:
     """
     Agent responsible for extracting assignment tasks and requirements from PDF documents.
     This agent focuses on understanding assignment specifications and structuring them
@@ -33,7 +33,6 @@ class AssignmentExtractionAgent:
         response = chain_json_with_thinking(self.llm).invoke(
             self.ASSIGNMENT_EXTRACTION_PROMPT.format(pdf_content=parsed_content["text"])
         )
-
         return response
 
     def save_assignment(
@@ -84,7 +83,11 @@ You must structure your response in the following JSON format:
 ## Assignment PDF Content:
 {pdf_content}
 
-## Response Template (strict - include all tags):
-<reasoning>Step-by-step thought process with numbered points (8 steps max, <=20 words each)</reasoning>
-<result>task_list_json</result>
+## Response Template (strictly follow):
+<reasoning>
+Step-by-step thought process with numbered points (8 steps max, <=20 words each)
+</reasoning>
+<result>
+task_list_json
+</result>
 """

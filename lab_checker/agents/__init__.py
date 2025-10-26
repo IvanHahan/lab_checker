@@ -12,15 +12,13 @@ This module provides specialized agents for different aspects of laboratory assi
 - WorkAgentLarge: Legacy agent with backward compatibility
 """
 
-from .assignment_extraction_agent import AssignmentExtractionAgent
+from .assignment_agent import AssignmentAgent
 from .evaluation_agent import TaskEvaluationAgent
 from .lab_checker_coordinator import LabCheckerCoordinator
-from .task_extraction_agent import TaskExtractionAgent
 from .task_submission_agent import TaskSubmissionAgent
 
 __all__ = [
-    "AssignmentExtractionAgent",
-    "TaskExtractionAgent",
+    "AssignmentAgent",
     "TaskSubmissionAgent",
     "TaskEvaluationAgent",
     "LabCheckerCoordinator",
