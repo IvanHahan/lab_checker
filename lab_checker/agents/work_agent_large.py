@@ -268,8 +268,9 @@ You must structure your evaluation in the following JSON format:
 ## Guidelines:
 - Analyze given task specification and user submission for the specific task.
 - Analyze visual references provided in the submission.
+- Check if visual references contain task/variant requirements.
 - Compare student's submission against the task and variant-specific requirements.
-- Identify any mistakes or omissions in the student's submission.
+- Identify mistakes or omissions in the submission.
 - Determine the completeness of the submission for the task.
 - Assign a grade based on the quality of the submission.
 - Ensure the final output is valid JSON adhering to the specified structure.
