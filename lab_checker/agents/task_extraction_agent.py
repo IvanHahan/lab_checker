@@ -81,8 +81,7 @@ You must structure your response in the following JSON format:
 - Analyze given task specification and what is required to be implemented.
 - Identify the content relevant to the specific task.
 - Analyze what the student has actually implemented for the task.
-- Extract relevant code excerpts and visual references from the submission related to the task.
-- DO NOT include unrelated visual references.
+- Extract ONLY relevant code excerpts and visual references from the submission related to the task.
 - Ensure the final output is valid JSON adhering to the specified structure.
 - NEVER make up any information. If something is not present in the submission, indicate it as such.
 

@@ -18,13 +18,14 @@ class LabCheckerCoordinator:
     using specialized agents for different aspects of the process.
     """
 
-    def __init__(self, llm: OpenAIModel):
+    def __init__(self, slm: OpenAIModel, llm: OpenAIModel):
+        self.slm = slm
         self.llm = llm
 
         # Initialize specialized agents
-        self.assignment_extraction_agent = AssignmentExtractionAgent(llm)
-        self.task_extraction_agent = TaskExtractionAgent(llm)
-        self.task_submission_agent = TaskSubmissionAgent(llm)
+        self.assignment_extraction_agent = AssignmentExtractionAgent(slm)
+        self.task_extraction_agent = TaskExtractionAgent(slm)
+        self.task_submission_agent = TaskSubmissionAgent(slm)
         self.evaluation_agent = TaskEvaluationAgent(llm)
 
     def run_full_analysis(

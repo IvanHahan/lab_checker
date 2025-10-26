@@ -17,14 +17,15 @@ def load_assignment_result(filepath: str) -> Assignment:
 def main_new_agents():
     """Demonstrate the new specialized agent system."""
     load_dotenv()
-    llm = OpenAIModel(model="gpt-4o-mini")
+    slm = OpenAIModel(model="gpt-5-nano")
+    llm = OpenAIModel(model="gpt-5")
 
     # File paths
     assignment_pdf = "/Users/ivanhahanov/Projects/lab_checker/data/assignments/укрТПКС_2023_ЛБ_1/укрТПКС_2023_ЛБ_1.pdf"
     submission_pdf = "/Users/ivanhahanov/Projects/lab_checker/data/assignments/укрТПКС_2023_ЛБ_1/submissions/ЛБ1_Варіант14_Дорошенко Ю.С._КІУКІ-22-7.pdf"
 
     # Create coordinator with specialized agents
-    coordinator = create_lab_checker(llm)
+    coordinator = create_lab_checker(slm, llm)
 
     print("Running comprehensive analysis with specialized agents...")
 

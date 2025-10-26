@@ -27,7 +27,7 @@ __all__ = [
 ]
 
 
-def create_lab_checker(llm_model) -> LabCheckerCoordinator:
+def create_lab_checker(slm_model, llm_model) -> LabCheckerCoordinator:
     """
     Convenience function to create a lab checker coordinator with all agents.
 
@@ -37,4 +37,4 @@ def create_lab_checker(llm_model) -> LabCheckerCoordinator:
     Returns:
         LabCheckerCoordinator instance ready for use
     """
-    return LabCheckerCoordinator(llm_model)
+    return LabCheckerCoordinator(slm_model, llm_model)
