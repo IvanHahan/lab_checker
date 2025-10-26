@@ -1,48 +1,59 @@
+import json
+
 from dotenv import load_dotenv
 
-from lab_checker.agents.assignment_agent import AssignmentAgent
-from lab_checker.agents.evaluation_agent import EvaluationAgent
-from lab_checker.agents.work_agent import WorkAgent
+from lab_checker.agents import create_lab_checker
+from lab_checker.data_model import Assignment
 from lab_checker.llm import OpenAIModel
 
-if __name__ == "__main__":
+
+def load_assignment_result(filepath: str) -> Assignment:
+    """Load assignment result from a JSON file."""
+    with open(filepath, "r", encoding="utf-8") as f:
+        assignment_data = json.load(f)
+        return Assignment(**assignment_data)
+
+
+def main_new_agents():
+    """Demonstrate the new specialized agent system."""
     load_dotenv()
-    llm = OpenAIModel("gpt-5-nano")
-    # Process the assignment specification
-    assignment_agent = AssignmentAgent(llm, output_dir="./output")
+    llm = OpenAIModel(model="gpt-4o-mini")
+
+    # File paths
     assignment_pdf = "/Users/ivanhahanov/Projects/lab_checker/data/assignments/укрТПКС_2023_ЛБ_1/укрТПКС_2023_ЛБ_1.pdf"
-    assignment_result = assignment_agent.run(assignment_pdf)
-
-    with open("assignment_result.json", "w", encoding="utf-8") as f:
-        f.write(assignment_result.model_dump_json(indent=2))
-
-    # Process the student submission
-    work_agent = WorkAgent(llm)
     submission_pdf = "/Users/ivanhahanov/Projects/lab_checker/data/assignments/укрТПКС_2023_ЛБ_1/submissions/ЛБ1_Варіант14_Дорошенко Ю.С._КІУКІ-22-7.pdf"
 
-    work_result = work_agent.run(
-        assignment=assignment_result,
+    # Create coordinator with specialized agents
+    coordinator = create_lab_checker(llm)
+
+    print("Running comprehensive analysis with specialized agents...")
+
+    # Run full analysis with new agent system
+    results = coordinator.run_full_analysis(
+        assignment_pdf=assignment_pdf,
         submission_pdf=submission_pdf,
+        output_dir="./output_new",
     )
 
-    with open("work_result.json", "w", encoding="utf-8") as f:
-        if hasattr(work_result, "model_dump_json"):
-            f.write(work_result.model_dump_json(indent=2))
-        else:
-            f.write(json.dumps(work_result, indent=2, ensure_ascii=False))
+    # Display results
+    print("\n=== Analysis Results ===")
+    print(f"Overall Grade: {results['overall_assessment']['overall_grade']}%")
+    print(f"Total Tasks: {results['submission_metadata']['total_tasks']}")
+    print(f"Tasks Completed: {results['summary']['tasks_completed']}")
+    print(f"Tasks Partial: {results['summary']['tasks_partial']}")
+    print(f"Tasks Incomplete: {results['summary']['tasks_incomplete']}")
 
-    # Evaluate the student submission
-    evaluation_agent = EvaluationAgent(llm)
-    evaluation_result = evaluation_agent.evaluate_from_results(
-        assignment_result=assignment_result,
-        work_result=work_result,
-        student_id="Дорошенко Ю.С.",
-        assignment_id="укрТПКС_2023_ЛБ_1",
-    )
+    return results
 
-    with open("evaluation_result.json", "w", encoding="utf-8") as f:
-        if hasattr(evaluation_result, "model_dump_json"):
-            f.write(evaluation_result.model_dump_json(indent=2))
-        else:
-            f.write(json.dumps(evaluation_result, indent=2, ensure_ascii=False))
-        f.write(evaluation_result)
+
+if __name__ == "__main__":
+    print("Lab Checker - Specialized Agents System")
+    print("=====================================")
+
+    # Choose which demonstration to run:
+
+    # 1. Run new agent system
+    main_new_agents()
+
+    # 2. Compare systems (uncomment to run)
+    # main_legacy_comparison()

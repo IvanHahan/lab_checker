@@ -1,217 +1,228 @@
+"""Evaluation agent for grading student task submissions against requirements."""
+
 import json
-from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List
 
-from ..message_utils import process_chunks_with_accumulated_context
+from lab_checker.message_utils import prepare_message_with_visuals
+
+from ..chains import chain_json_with_thinking
+from ..llm import OpenAIModel
 
 
-class EvaluationAgent:
+class TaskEvaluationAgent:
     """
-    Agent responsible for evaluating student submissions based on
-    assignment requirements and work analysis.
+    Agent responsible for evaluating student task submissions against assignment requirements.
+    This agent provides objective scoring, feedback, and detailed assessment of student work.
     """
 
-    def __init__(self, llm):
+    def __init__(self, llm: OpenAIModel):
         self.llm = llm
-        self.system_prompt = self._load_prompt()
 
-    def _load_prompt(self) -> str:
-        """Load the system prompt from the prompts directory."""
-        prompt_path = Path(__file__).parent.parent / "prompts" / "evaluation_agent.md"
-        with open(prompt_path, "r", encoding="utf-8") as f:
-            return f.read()
-
-    def run(
+    def evaluate_task_submission(
         self,
-        assignment_data: Dict[str, Any],
-        work_analysis: Dict[str, Any],
-        student_id: Optional[str] = None,
-        assignment_id: Optional[str] = None,
+        task: Dict[str, Any],
+        submission_analysis: Dict[str, Any],
+        visual_context: Dict[str, Any] = None,
     ) -> Dict[str, Any]:
         """
-        Evaluate student submission based on assignment requirements and work analysis.
+        Evaluate a student's task submission against task requirements.
 
         Args:
-            assignment_data: The structured assignment data from AssignmentAgent
-                            (JSON object with tasks, requirements, etc.)
-            work_analysis: The structured work analysis from WorkAgent
-                          (JSON object with task answers, implementation details, etc.)
-            student_id: Student identifier (optional)
-            assignment_id: Assignment identifier (optional)
+            task: Task specification from assignment
+            submission_analysis: Analysis of student's submission for this task
+            visual_context: Visual elements from submission if available
 
         Returns:
-            Dictionary containing structured evaluation with scores and feedback
+            Dictionary containing evaluation results, scores, and feedback
         """
-        # Prepare the user message with assignment and work analysis data
-        user_message = self._prepare_user_message(
-            assignment_data, work_analysis, student_id, assignment_id
-        )
+        # Extract visual references from submission if present
+        visual_references = submission_analysis.get("visual_references", [])
+        visual_text = ""
 
-        # Convert string message to content entries for chunk processing
-        message_content = [{"type": "input_text", "text": user_message}]
+        if visual_references and visual_context:
+            for visual_ref in visual_references:
+                tag = visual_ref.get("tag", "")
+                description = visual_ref.get("description", "")
+                if tag:
+                    visual_text += f"\n{description}:\n{tag}\n"
 
-        # Process chunks with accumulated context for long documents
-        chunk_context_instruction = (
-            "\n\n## Summary of Earlier Sections\n"
-            "Based on evaluation of earlier tasks, the following results were already determined:\n"
-            "{accumulated_output}\n\n"
-            "Continue evaluating the remaining tasks, building upon the assessment provided above."
-        )
+        # Prepare visual content for evaluation
+        visual_content = []
+        if visual_context and visual_text:
+            visual_content = prepare_message_with_visuals(
+                text=visual_text,
+                visuals=visual_context,
+            )
 
-        combine_instruction = (
-            "\n\nYou have now evaluated all tasks in the submission. "
-            "Provide the final, comprehensive evaluation output that consolidates all scores, "
-            "feedback, and recommendations from evaluating all tasks. Ensure the output is "
-            "well-structured with no duplicates and includes overall scoring and summary."
-        )
+        # Prepare message content
+        message_content = [
+            {
+                "type": "input_text",
+                "text": self.EVALUATE_PROMPT.format(
+                    task_description=json.dumps(task, ensure_ascii=False),
+                    student_submission=json.dumps(
+                        submission_analysis, ensure_ascii=False
+                    ),
+                ),
+            },
+            *visual_content,
+        ]
 
-        response = process_chunks_with_accumulated_context(
-            llm=self.llm,
-            system_prompt=self.system_prompt,
-            content_entries=message_content,
-            max_chars=3000,
-            chunk_context_instruction=chunk_context_instruction,
-            combine_instruction=combine_instruction,
+        # Get evaluation from LLM
+        response = chain_json_with_thinking(self.llm).invoke(
+            "",
+            messages=[
+                {
+                    "role": "user",
+                    "content": message_content,
+                },
+            ],
         )
 
         return response
 
-    def _prepare_user_message(
+    def evaluate_multiple_tasks(
         self,
-        assignment_data: Dict[str, Any],
-        work_analysis: Dict[str, Any],
-        student_id: Optional[str] = None,
-        assignment_id: Optional[str] = None,
-    ) -> str:
+        tasks: List[Dict[str, Any]],
+        submissions: List[Dict[str, Any]],
+        visual_contexts: List[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
         """
-        Prepare the user message containing assignment and work analysis information.
+        Evaluate multiple task submissions.
 
         Args:
-            assignment_data: Structured assignment data
-            work_analysis: Structured work analysis from WorkAgent
-            student_id: Student identifier
-            assignment_id: Assignment identifier
+            tasks: List of task specifications
+            submissions: List of submission analyses
+            visual_contexts: List of visual contexts for each submission
 
         Returns:
-            Formatted string for the user message
+            List of evaluation results for each task
         """
-        message_parts = []
+        evaluations = []
+        visual_contexts = visual_contexts or [None] * len(tasks)
 
-        # Add header
-        message_parts.append("# Evaluation Request")
-        message_parts.append("")
-        message_parts.append(
-            "Please evaluate the following student submission based on the assignment "
-            "requirements and the work analysis provided."
-        )
-        message_parts.append("")
+        for i, (task, submission) in enumerate(zip(tasks, submissions)):
+            visual_context = visual_contexts[i] if i < len(visual_contexts) else None
+            evaluation = self.evaluate_task_submission(task, submission, visual_context)
+            evaluations.append(evaluation)
 
-        # Add metadata if available
-        if student_id or assignment_id:
-            message_parts.append("## Metadata")
-            if student_id:
-                message_parts.append(f"**Student ID**: {student_id}")
-            if assignment_id:
-                message_parts.append(f"**Assignment ID**: {assignment_id}")
-            message_parts.append("")
+        return evaluations
 
-        # Add assignment specification
-        message_parts.append("## Assignment Specification")
-        message_parts.append(
-            "Below is the complete assignment specification that defines all tasks, "
-            "requirements, and evaluation criteria:"
-        )
-        message_parts.append("")
-        message_parts.append("```json")
-        message_parts.append(json.dumps(assignment_data, indent=2, ensure_ascii=False))
-        message_parts.append("```")
-        message_parts.append("")
+    def save_evaluation(
+        self, evaluation_data: Dict[str, Any], task_index: int, output_dir: str = "."
+    ) -> None:
+        """
+        Save task evaluation results to a JSON file.
 
-        # Add work analysis
-        message_parts.append("## Student Work Analysis")
-        message_parts.append(
-            "Below is the detailed analysis of what the student submitted, including "
-            "implementation details, completeness status, and documentation quality:"
-        )
-        message_parts.append("")
-        message_parts.append("```json")
-        message_parts.append(json.dumps(work_analysis, indent=2, ensure_ascii=False))
-        message_parts.append("```")
-        message_parts.append("")
+        Args:
+            evaluation_data: Evaluation data from evaluate_task_submission
+            task_index: Index of the task (for filename generation)
+            output_dir: Directory where to save the evaluation JSON file
+        """
+        output_path = f"{output_dir}/task_{task_index}_eval.json"
+        with open(output_path, "w") as f:
+            f.write(evaluation_data.model_dump_json(indent=2, ensure_ascii=False))
 
-        # Add evaluation instruction
-        message_parts.append("---")
-        message_parts.append("")
-        message_parts.append("## Instructions")
-        message_parts.append(
-            "Please evaluate each task and the overall submission according to the "
-            "evaluation criteria specified in your system instructions. Provide:"
-        )
-        message_parts.append("")
-        message_parts.append(
-            "1. **Individual task scores** (0-10) with detailed breakdown"
-        )
-        message_parts.append("2. **Overall score** and letter grade")
-        message_parts.append("3. **Specific feedback** for each task")
-        message_parts.append("4. **Strengths and weaknesses**")
-        message_parts.append("5. **Actionable suggestions** for improvement")
-        message_parts.append("")
-        message_parts.append(
-            "Base your evaluation strictly on the evidence provided in the work analysis. "
-            "Be fair, objective, and constructive in your feedback."
-        )
-
-        return "\n".join(message_parts)
-
-    def evaluate_from_results(
-        self,
-        assignment_result: Any,
-        work_result: Any,
-        student_id: Optional[str] = None,
-        assignment_id: Optional[str] = None,
+    def generate_overall_grade(
+        self, evaluations: List[Dict[str, Any]], weights: List[float] = None
     ) -> Dict[str, Any]:
         """
-        Convenience method to evaluate when you have raw results from other agents.
-        Handles parsing of string results to JSON if needed.
+        Generate an overall grade based on individual task evaluations.
 
         Args:
-            assignment_result: Result from AssignmentAgent.run() (dict or JSON string)
-            work_result: Result from WorkAgent.run() (dict or JSON string)
-            student_id: Student identifier (optional)
-            assignment_id: Assignment identifier (optional)
+            evaluations: List of task evaluation results
+            weights: Optional weights for each task (defaults to equal weighting)
 
         Returns:
-            Dictionary containing structured evaluation with scores and feedback
+            Dictionary containing overall grade and summary
         """
-        # Parse assignment_result if it's a string
-        if isinstance(assignment_result, str):
-            try:
-                assignment_data = json.loads(assignment_result)
-            except json.JSONDecodeError:
-                raise ValueError(
-                    "assignment_result is a string but could not be parsed as JSON"
-                )
-        else:
-            assignment_data = assignment_result
+        if not evaluations:
+            return {"overall_grade": 0, "summary": "No evaluations provided"}
 
-        # Parse work_result if it's a string
-        if isinstance(work_result, str):
-            try:
-                work_analysis = json.loads(work_result)
-            except json.JSONDecodeError:
-                raise ValueError(
-                    "work_result is a string but could not be parsed as JSON"
-                )
-        else:
-            work_analysis = work_result
+        # Default to equal weights if not provided
+        if weights is None:
+            weights = [1.0] * len(evaluations)
 
-        # Handle case where work_result has an error but contains raw_response
-        if isinstance(work_analysis, dict) and "error" in work_analysis:
-            if "raw_response" in work_analysis:
-                try:
-                    work_analysis = json.loads(work_analysis["raw_response"])
-                except json.JSONDecodeError:
-                    # Keep the error structure if we can't parse raw_response
-                    pass
+        # Normalize weights
+        total_weight = sum(weights)
+        normalized_weights = [w / total_weight for w in weights]
 
-        return self.run(assignment_data, work_analysis, student_id, assignment_id)
+        # Calculate weighted average
+        total_score = 0
+        total_possible = 0
+
+        for eval_data, weight in zip(evaluations, normalized_weights):
+            task_result = eval_data.get("result", {})
+            grade = float(task_result.get("grade", 0))
+            total_score += grade * weight * 100  # Assuming grade is 0-100
+            total_possible += weight * 100
+
+        overall_grade = (
+            (total_score / total_possible * 100) if total_possible > 0 else 0
+        )
+
+        return {
+            "overall_grade": round(overall_grade, 2),
+            "individual_scores": [
+                {
+                    "task_index": i,
+                    "score": eval_data.get("result", {}).get("grade", 0),
+                    "weight": weights[i],
+                }
+                for i, eval_data in enumerate(evaluations)
+            ],
+            "summary": f"Overall grade: {overall_grade:.2f}% based on {len(evaluations)} tasks",
+        }
+
+    @property
+    def EVALUATE_PROMPT(self) -> str:
+        """Prompt template for task evaluation."""
+        return """
+# Student Submission Evaluation Prompt
+You are an expert at evaluating student submissions for laboratory assignments.
+Your task is to evaluate the student's submission based on the provided assignment specification and the student's work analysis.
+
+## Task Specification:
+{task_description}
+
+## Student Task Submission:
+{student_submission}
+
+You must structure your evaluation in the following JSON format:
+{{
+    "completeness": "<complete|incomplete|partial>",
+    "mistakes": ["<List of mistakes or omissions>"],
+    "grade": "<0-100>",
+    "detailed_feedback": {{
+        "strengths": ["<List of positive aspects>"],
+        "weaknesses": ["<List of areas for improvement>"],
+        "suggestions": ["<Specific suggestions for improvement>"]
+    }},
+    "criterion_scores": {{
+        "functionality": "<0-10> - Does the implementation work as required?",
+        "completeness": "<0-10> - Are all requirements addressed?",
+        "code_quality": "<0-10> - Is the code well-organized and readable?",
+        "documentation": "<0-10> - Is the work properly documented?"
+    }}
+}}
+
+## Guidelines:
+- Analyze given task specification and user submission for the specific task.
+- Analyze visual references provided in the submission.
+- Check if visual references contain task/variant requirements.
+- Compare student's submission against the task and variant-specific requirements.
+- Identify mistakes or omissions in the submission.
+- Determine the completeness of the submission for the task.
+- Assign a grade based on the quality of the submission (0-100 scale).
+- Provide constructive feedback that helps the student improve.
+- Be fair but thorough in assessment.
+- Consider partial credit for incomplete but correct implementations.
+- Ensure the final output is valid JSON adhering to the specified structure.
+- NEVER make up any information. If something is not present in the context, indicate it as such.
+
+## Response Template (strict - include start/end tags):
+<reasoning>Step-by-step thought process with numbered points (8 steps max, <=20 words each)</reasoning>
+<result>evaluation_json</result>
+
+## Student Visual References:
+"""

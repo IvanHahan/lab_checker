@@ -642,7 +642,7 @@ def _format_page_with_visuals(
 
 def _prepare_visual_references(
     visuals_with_pos: List[Tuple[float, Dict]], global_counter: int
-) -> Tuple[List[Dict], List[Tuple[float, int, str]], int]:
+) -> Tuple[Dict[str, Dict], List[Tuple[float, int, str]], int]:
     """
     Prepare visual references for text insertion and tracking.
 
@@ -651,15 +651,16 @@ def _prepare_visual_references(
         global_counter: Current global visual counter
 
     Returns:
-        Tuple of (updated_visuals, visual_refs, new_counter)
+        Tuple of (updated_visuals_dict, visual_refs, new_counter)
     """
-    updated_visuals = []
+    updated_visuals = {}
     visual_refs = []
 
     for y_pos, visual_info in visuals_with_pos:
         global_counter += 1
         visual_info["global_index"] = global_counter
-        updated_visuals.append(visual_info)
+        visual_tag = _create_visual_token(visual_info["type"], global_counter)
+        updated_visuals[visual_tag] = visual_info
         visual_refs.append((y_pos, global_counter, visual_info["type"]))
 
     # Sort by vertical position
@@ -826,14 +827,14 @@ def parse_pdf(
     Returns:
         Dictionary containing:
             - 'text': Extracted text with visual placeholder tokens inserted
-            - 'visuals': List of dictionaries with visual info (type, image, page, index, bbox)
+            - 'visuals': Dictionary mapping visual tags (e.g., '<<IMAGE_1>>') to visual info dictionaries
             - 'page_count': Number of pages in the PDF
 
     Raises:
         FileNotFoundError: If the PDF file doesn't exist
     """
     text_content = []
-    all_visuals = []
+    all_visuals = {}
     global_visual_counter = 0
 
     with pdfplumber.open(file_path, password=password) as pdf:
@@ -847,7 +848,7 @@ def parse_pdf(
             if page_text:
                 text_content.append(page_text)
 
-            all_visuals.extend(page_visuals)
+            all_visuals.update(page_visuals)
 
     return {
         "text": "\n".join(text_content),
@@ -872,13 +873,17 @@ if __name__ == "__main__":
 
             # Count by type
             visual_types = {}
-            for visual in result["visuals"]:
+            for tag, visual in result["visuals"].items():
                 vtype = visual["type"]
                 visual_types[vtype] = visual_types.get(vtype, 0) + 1
 
             print("\nVisual elements by type:")
             for vtype, count in visual_types.items():
                 print(f"  {vtype}: {count}")
+
+            print("\nVisual tags:")
+            for tag in result["visuals"].keys():
+                print(f"  {tag}")
 
             print("\nFirst 500 characters of text:")
             print(result["text"][:500])
