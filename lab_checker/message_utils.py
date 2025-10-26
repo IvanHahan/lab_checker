@@ -11,7 +11,7 @@ from loguru import logger
 
 
 def prepare_message_with_visuals(
-    text: str, visuals: List[Dict[str, Any]]
+    text: str, visuals: Dict[str, Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
     """
     Convert text with visual tokens into message format with images.
@@ -21,7 +21,7 @@ def prepare_message_with_visuals(
 
     Args:
         text: Text with visual tokens
-        visuals: List of visual elements from parse_pdf()
+        visuals: Dictionary mapping visual tags to visual info from parse_pdf()
 
     Returns:
         List of content entries for OpenAI API with alternating text and image_url entries
@@ -34,15 +34,10 @@ def prepare_message_with_visuals(
         logger.debug("No visuals provided, returning text-only content entry")
         return [{"type": "input_text", "text": text}]
 
-    # Create a mapping from visual tokens to visual data
-    visual_map = {}
-    for visual in visuals:
-        global_idx = visual.get("global_index")
-        visual_type = visual.get("type", "image").upper()
-        if global_idx:
-            token = f"<<{visual_type}_{global_idx}>>"
-            visual_map[token] = visual
-            logger.debug(f"Mapped visual token: {token}")
+    # Visual tokens are now the keys in the visuals dictionary
+    visual_map = visuals
+    for token in visual_map.keys():
+        logger.debug(f"Available visual token: {token}")
 
     # Pattern to match visual tokens: <<IMAGE_N>> or <<DIAGRAM_N>>
     token_pattern = r"<<(IMAGE|DIAGRAM)_(\d+)>>"
