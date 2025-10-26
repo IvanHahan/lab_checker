@@ -221,12 +221,8 @@ Evaluation JSON Schema:
 - NEVER make up any information. If something is not present in the context, indicate it as such.
 
 ## Response Template (strictly follow):
-<reasoning>
-Step-by-step thought process with numbered points (8 steps max, <=20 words each)
-</reasoning>
-<result>
-evaluation_json
-</result>
+THINKING: <Step-by-step thought process with numbered points (8 steps max, <=20 words each)>
+FINAL_OUTPUT: <evaluation_json>
 
 ## Student Visual References:
 """

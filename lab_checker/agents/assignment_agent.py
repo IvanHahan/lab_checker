@@ -84,10 +84,6 @@ Assignment JSON Schema:
 {pdf_content}
 
 ## Response Template (strictly follow):
-<reasoning>
-Step-by-step thought process with numbered points (8 steps max, <=20 words each)
-</reasoning>
-<result>
-assignment_json
-</result>
+THINKING: <Step-by-step thought process with numbered points (8 steps max, <=20 words each)>
+FINAL_OUTPUT: <assignment_json>
 """

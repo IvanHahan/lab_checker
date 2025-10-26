@@ -1,6 +1,7 @@
 """Coordinator agent that orchestrates the specialized agents for lab checking workflow."""
 
 import json
+import os
 from typing import Any, Dict, Optional
 
 from loguru import logger
@@ -26,7 +27,7 @@ class LabCheckerCoordinator:
         # Initialize specialized agents
         logger.debug("Initializing specialized agents")
         self.assignment_extraction_agent = AssignmentAgent(slm)
-        self.task_submission_agent = TaskSubmissionAgent(slm)
+        self.task_submission_agent = TaskSubmissionAgent(llm)
         self.evaluation_agent = TaskEvaluationAgent(llm)
         logger.info("LabCheckerCoordinator initialized successfully")
 
@@ -61,7 +62,7 @@ class LabCheckerCoordinator:
         assignment_data = self.assignment_extraction_agent.extract_assignment(
             assignment_pdf
         )
-
+        os.makedirs(output_dir, exist_ok=True)
         with open(f"{output_dir}/assignment.json", "w") as f:
             f.write(assignment_data.model_dump_json(indent=2, ensure_ascii=False))
 

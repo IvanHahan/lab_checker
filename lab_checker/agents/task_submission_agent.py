@@ -68,7 +68,7 @@ Your task is to analyze given task specification and extract all the context fro
 
 Task Submission JSON Schema:
 {{
-    "variant_requirements": "<Variant Specific Requirements>",
+    "variant_requirements": "<Variant Specific Requirements only if specified>",
     "implemented_solution": "<Detailed description of what the student implemented>",
     "code_excerpts": ["<Relevant code excerpts from the submission>"],
     "visual_references": [
@@ -86,10 +86,6 @@ Task Submission JSON Schema:
 - NEVER make up any information. If something is not present in the submission, indicate it as such.
 
 ## Response Template (strictly follow):
-<reasoning>
-Step-by-step thought process with numbered points (8 steps max, <=20 words each)
-</reasoning>
-<result>
-task_json
-</result>
+THINKING: <Step-by-step thought process with numbered points (8 steps max, <=20 words each)>
+FINAL_OUTPUT: <task_json>
 """
