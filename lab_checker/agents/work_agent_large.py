@@ -46,17 +46,20 @@ class WorkAgentLarge:
 
         submission_pdf = parse_pdf(submission_pdf)
         task_submissions = []
-        for task in tasks:
+        for i, task in enumerate(tasks):
             response = self._extract_submission_for_task(
                 submission_pdf=submission_pdf,
                 task=task,
             )
-            with open(f"task_{task['name']}.json", "w") as f:
+            with open(f"task_{i}.json", "w") as f:
                 f.write(response.model_dump_json(indent=2, ensure_ascii=False))
             task_submissions.append(response.result)
+            response = self._evaluate_task_submission(
+                task, response.result, submission_pdf.get("visuals", {})
+            )
+            with open(f"task_{i}_eval.json", "w") as f:
+                f.write(response.model_dump_json(indent=2, ensure_ascii=False))
 
-        messages = self._prepare_pdf_messages(submission_pdf, WORK_AGENT_PROMPT)
-        response = chain_json_with_thinking(self.llm).invoke("", messages=messages)
         return response
 
     def _extract_assignment(self, assignment_pdf: str):
@@ -95,6 +98,45 @@ class WorkAgentLarge:
         ]
         return messages
 
+    def _evaluate_task_submission(
+        self,
+        task: Dict[str, Any],
+        submission: Dict[str, Any],
+        visuals: Dict[str, Any],
+    ):
+        visual_references = submission.pop("visual_references", [])
+        visual_text = ""
+        for visual_ref in visual_references:
+            tag = visual_ref.get("tag", "")
+            description = visual_ref.get("description", "")
+            if tag:
+                visual_text += f"\n{description}:\n{tag}\n"  # This will be replaced with actual image
+        visual_content = prepare_message_with_visuals(
+            text=visual_text,
+            visuals=visuals,
+        )
+        message_content = [
+            {
+                "type": "input_text",
+                "text": EVALUATE_PROMPT.format(
+                    task_description=task,
+                    student_submission=json.dumps(submission, ensure_ascii=False),
+                ),
+            },
+            *visual_content,
+        ]
+
+        response = chain_json_with_thinking(self.llm).invoke(
+            "",
+            messages=[
+                {
+                    "role": "user",
+                    "content": message_content,
+                },
+            ],
+        )
+        return response
+
 
 EXTRACT_TASK_PROMPT = """
 # Task Extraction Prompt
@@ -112,7 +154,10 @@ You must structure your response in the following JSON format:
     "variant_requirements": "<Variant Specific Requirements>",
     "implemented_solution": "<Detailed description of what the student implemented>",
     "code_excerpts": ["<Relevant code excerpts from the submission>"],
-    "visual_references": ["List of related <<Image/Diagram>> tags"]
+    "visual_references": [
+        {{"tag": "<<Image/Diagram Tag with brackets>>", "description": "<Description of relevance>"}},
+        ...
+    ]
 }}
 ## Guidelines:
 - Analyze given task specification and what is required to be implemented.
@@ -120,6 +165,7 @@ You must structure your response in the following JSON format:
 - Analyze what the student has actually implemented for the task.
 - Extract relevant code excerpts and visual references from the submission related to the task.
 - Ensure the final output is valid JSON adhering to the specified structure.
+- NEVER make up any information. If something is not present in the submission, indicate it as such.
 
 ## Response Template (strict - include start/end tags):
 <reasoning>Step-by-step thought process with numbered points (8 steps max, <=20 words each)</reasoning>
@@ -149,6 +195,7 @@ You must structure your response in the following JSON format:
 - Thoroughly analyze both textual and visual content in the assignment specification.
 - Identify each task and its requirements based on the assignment specification.
 - Ensure the final output is valid JSON adhering to the specified structure. 
+- NEVER make up any information. If something is not present in the context, indicate it as such.
 
 ## Assignment PDF Content:
 {pdf_content}
@@ -193,8 +240,44 @@ You must structure your response in the following JSON format:
 - Compare the implemented solution against the task requirements to identify any mistakes or omissions.
 - Determine the completion status for each task
 - Ensure the final output is valid JSON adhering to the specified structure.
+- NEVER make up any information. If something is not present in the context, indicate it as such.
 
 ## Response Template (strict - include all tags):
 <reasoning>Step-by-step thought process with numbered points (8 steps max, <=20 words each)</reasoning>
 <result>task_json</result>
+"""
+
+
+EVALUATE_PROMPT = """
+# Student Submission Evaluation Prompt
+You are an expert at evaluating student submissions for laboratory assignments.
+Your task is to evaluate the student's submission based on the provided assignment specification and the student's work analysis.
+
+## Task Specification:
+{task_description}
+
+## Student Task Submission:
+{student_submission}
+
+You must structure your evaluation in the following JSON format:
+{{
+    "completeness": "<complete|incomplete|partial>",
+    "mistakes": ["<List of mistakes or omissions>"],
+    "grade": "<0-100>",
+}}
+## Guidelines:
+- Analyze given task specification and user submission for the specific task.
+- Analyze visual references provided in the submission.
+- Compare student's submission against the task and variant-specific requirements.
+- Identify any mistakes or omissions in the student's submission.
+- Determine the completeness of the submission for the task.
+- Assign a grade based on the quality of the submission.
+- Ensure the final output is valid JSON adhering to the specified structure.
+- NEVER make up any information. If something is not present in the context, indicate it as such.
+
+## Response Template (strict - include start/end tags):
+<reasoning>Step-by-step thought process with numbered points (8 steps max, <=20 words each)</reasoning>
+<result>evaluation_json</result>
+
+## Student Visual References:
 """
