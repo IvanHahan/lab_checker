@@ -122,7 +122,7 @@ You must structure your response in the following JSON format:
 - Ensure the final output is valid JSON adhering to the specified structure.
 
 ## Response Template (strict - include start/end tags):
-<reasoning>Step-by-step thought process with numbered points</reasoning>
+<reasoning>Step-by-step thought process with numbered points (8 steps max, <=20 words each)</reasoning>
 <result>task_json</result>
 """
 
@@ -154,7 +154,7 @@ You must structure your response in the following JSON format:
 {pdf_content}
 
 ## Response Template (strict - include all tags):
-<reasoning>Step-by-step thought process with numbered points</reasoning>
+<reasoning>Step-by-step thought process with numbered points (8 steps max, <=20 words each)</reasoning>
 <result>task_list_json</result>
 """
 
@@ -195,6 +195,6 @@ You must structure your response in the following JSON format:
 - Ensure the final output is valid JSON adhering to the specified structure.
 
 ## Response Template (strict - include all tags):
-<reasoning>Step-by-step thought process with numbered points</reasoning>
+<reasoning>Step-by-step thought process with numbered points (8 steps max, <=20 words each)</reasoning>
 <result>task_json</result>
 """
