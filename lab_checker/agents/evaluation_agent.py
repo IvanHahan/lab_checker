@@ -152,7 +152,7 @@ class TaskEvaluationAgent:
         total_possible = 0
 
         for eval_data, weight in zip(evaluations, normalized_weights):
-            task_result = eval_data.get("result", {})
+            task_result = eval_data.result
             grade = float(task_result.get("grade", 0))
             total_score += grade * weight * 100  # Assuming grade is 0-100
             total_possible += weight * 100

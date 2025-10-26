@@ -69,19 +69,19 @@ Your task is to analyze given task specification and extract all the context fro
 Task Submission JSON Schema:
 {{
     "variant_requirements": "<Variant Specific Requirements only if specified>",
-    "implemented_solution": "<Detailed description of what the student implemented>",
-    "code_excerpts": ["<Relevant code excerpts from the submission>"],
+    "implemented_solution": "<Detailed description of what the student implemented for this task>",
+    "code_excerpts": ["<Relevant code excerpts for the task>"],
     "visual_references": [
-        {{"tag": "<<Image/Diagram Tag with brackets>>", "description": "<Description of relevance>"}},
+        {{"tag": "<<Image/Diagram Tag with brackets>>", "description": "<Description of the visual content if available>"}},
         ...
     ]
 }}
 
 ## Guidelines:
-- Analyze given task specification and what is required to be implemented.
-- Identify the content relevant to the specific task.
-- Analyze what the student has actually implemented for the task.
-- Extract ONLY relevant code excerpts and visual references from the submission related to the task.
+- Analyze given task specification carefully.
+- Identify the content related to the given task.
+- Identify any variant-specific requirements if applicable.
+- Extract ONLY relevant context including code excerpts and visual references.
 - Ensure the final output is valid JSON adhering to the specified structure.
 - NEVER make up any information. If something is not present in the submission, indicate it as such.
 
