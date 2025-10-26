@@ -188,7 +188,7 @@ Your task is to evaluate the student's submission based on the provided assignme
 ## Student Task Submission:
 {student_submission}
 
-You must structure your evaluation in the following JSON format:
+Evaluation JSON Schema:
 {{
     "completeness": "<complete|incomplete|partial>",
     "mistakes": ["<List of mistakes or omissions>"],

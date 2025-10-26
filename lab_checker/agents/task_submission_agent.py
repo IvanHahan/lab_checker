@@ -66,7 +66,7 @@ Your task is to analyze given task specification and extract all the context fro
 ## PDF Content:
 {pdf_content}
 
-You must structure your response in the following JSON format:
+Task Submission JSON Schema:
 {{
     "variant_requirements": "<Variant Specific Requirements>",
     "implemented_solution": "<Detailed description of what the student implemented>",

@@ -58,7 +58,7 @@ You are an expert at analyzing laboratory assignment specifications.
 Your task is to carefully examine the provided assignment specification content, which may include text and visual elements such as images or diagrams.
 Based on your analysis, extract and list all tasks defined in the assignment along with their detailed requirements
 
-You must structure your response in the following JSON format:
+Assignment JSON Schema:
 {{
   "course": "<Course Name>",
   "tasks": [
@@ -88,6 +88,6 @@ You must structure your response in the following JSON format:
 Step-by-step thought process with numbered points (8 steps max, <=20 words each)
 </reasoning>
 <result>
-task_list_json
+assignment_json
 </result>
 """
