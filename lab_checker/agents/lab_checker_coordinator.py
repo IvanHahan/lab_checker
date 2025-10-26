@@ -4,6 +4,8 @@ import json
 import os
 from typing import Any, Dict, Optional
 
+from loguru import logger
+
 from ..doc_parsing import parse_pdf
 from ..llm import OpenAIModel
 from .assignment_extraction_agent import AssignmentExtractionAgent
@@ -19,14 +21,17 @@ class LabCheckerCoordinator:
     """
 
     def __init__(self, slm: OpenAIModel, llm: OpenAIModel):
+        logger.info("Initializing LabCheckerCoordinator")
         self.slm = slm
         self.llm = llm
 
         # Initialize specialized agents
+        logger.debug("Initializing specialized agents")
         self.assignment_extraction_agent = AssignmentExtractionAgent(slm)
         self.task_extraction_agent = TaskExtractionAgent(slm)
         self.task_submission_agent = TaskSubmissionAgent(slm)
         self.evaluation_agent = TaskEvaluationAgent(llm)
+        logger.info("LabCheckerCoordinator initialized successfully")
 
     def run_full_analysis(
         self,
@@ -47,50 +52,69 @@ class LabCheckerCoordinator:
         Returns:
             Dictionary with complete analysis results
         """
+        logger.info(
+            f"Starting full analysis with assignment_pdf={assignment_pdf}, submission_pdf={submission_pdf}"
+        )
+        logger.debug(
+            f"Parameters: use_comprehensive_analysis={use_comprehensive_analysis}, output_dir={output_dir}"
+        )
+
         # Step 1: Extract or load assignment structure
+        logger.info("Step 1: Extracting/loading assignment structure")
         assignment_data = self._get_assignment_data(
             assignment_pdf, use_comprehensive_analysis, output_dir
         )
 
         if not assignment_data:
+            logger.error("Could not extract or load assignment data")
             raise ValueError("Could not extract or load assignment data")
 
         # Extract tasks from the assignment data
         tasks = assignment_data["result"]["tasks"]
+        logger.info(f"Found {len(tasks)} tasks in assignment")
 
         # Step 2: Parse submission PDF
+        logger.info("Step 2: Parsing submission PDF")
         submission_content = parse_pdf(submission_pdf) if submission_pdf else None
         if not submission_content:
+            logger.error(f"Could not parse submission PDF: {submission_pdf}")
             raise ValueError("Could not parse submission PDF")
+        logger.debug("Submission PDF parsed successfully")
 
         # Step 3: Process each task
+        logger.info("Step 3: Processing individual tasks")
         task_results = []
         evaluations = []
 
         for i, task in enumerate(tasks):
-            print(
-                f"Processing task {i + 1}/{len(tasks)}: {task.get('title', task.get('name', f'Task {i + 1}'))}"
-            )
+            task_title = task.get("title", task.get("name", f"Task {i + 1}"))
+            logger.info(f"Processing task {i + 1}/{len(tasks)}: {task_title}")
+            print(f"Processing task {i + 1}/{len(tasks)}: {task_title}")
 
             # Extract task-specific submission content
+            logger.debug(f"Extracting submission content for task {i + 1}")
             task_extraction = self.task_extraction_agent.extract_task_submission(
                 submission_content, task
             )
 
             # Save task extraction
+            logger.debug(f"Saving task extraction for task {i + 1}")
             self.task_extraction_agent.save_task_submission(
                 task_extraction, i, output_dir
             )
 
             # Comprehensive task submission analysis
+            logger.debug(f"Analyzing task submission for task {i + 1}")
             task_analysis = self.task_submission_agent.analyze_task_submission(
                 submission_pdf, task, assignment_data
             )
 
             # Save task analysis
+            logger.debug(f"Saving task analysis for task {i + 1}")
             self.task_submission_agent.save_analysis(task_analysis, i, output_dir)
 
             # Evaluate task submission
+            logger.debug(f"Evaluating task submission for task {i + 1}")
             evaluation = self.evaluation_agent.evaluate_task_submission(
                 task,
                 (
@@ -102,6 +126,7 @@ class LabCheckerCoordinator:
             )
 
             # Save evaluation
+            logger.debug(f"Saving evaluation for task {i + 1}")
             self.evaluation_agent.save_evaluation(evaluation, i, output_dir)
 
             task_results.append(
@@ -115,11 +140,18 @@ class LabCheckerCoordinator:
             )
 
             evaluations.append(evaluation)
+            logger.info(f"Completed processing task {i + 1}: {task_title}")
 
         # Step 4: Generate overall assessment
+        logger.info("Step 4: Generating overall assessment")
         overall_grade = self.evaluation_agent.generate_overall_grade(evaluations)
 
         # Step 5: Compile final results
+        logger.info("Step 5: Compiling final results")
+        completed_tasks = len([r for r in task_results if self._is_task_completed(r)])
+        partial_tasks = len([r for r in task_results if self._is_task_partial(r)])
+        incomplete_tasks = len([r for r in task_results if self._is_task_incomplete(r)])
+
         final_results = {
             "assignment_data": assignment_data,
             "submission_metadata": {
@@ -131,17 +163,16 @@ class LabCheckerCoordinator:
             "overall_assessment": overall_grade,
             "summary": {
                 "total_score": overall_grade["overall_grade"],
-                "tasks_completed": len(
-                    [r for r in task_results if self._is_task_completed(r)]
-                ),
-                "tasks_partial": len(
-                    [r for r in task_results if self._is_task_partial(r)]
-                ),
-                "tasks_incomplete": len(
-                    [r for r in task_results if self._is_task_incomplete(r)]
-                ),
+                "tasks_completed": completed_tasks,
+                "tasks_partial": partial_tasks,
+                "tasks_incomplete": incomplete_tasks,
             },
         }
+
+        logger.info(
+            f"Analysis complete - Score: {overall_grade['overall_grade']}, "
+            f"Completed: {completed_tasks}, Partial: {partial_tasks}, Incomplete: {incomplete_tasks}"
+        )
 
         # Save final results
         self._save_final_results(final_results, output_dir)
@@ -156,14 +187,17 @@ class LabCheckerCoordinator:
 
         # Check if assignment.json already exists
         if os.path.exists(assignment_file):
+            logger.info(f"Loading existing assignment data from {assignment_file}")
             with open(assignment_file, "r") as f:
                 return json.load(f)
 
         # Extract assignment data if PDF is provided
         if assignment_pdf:
+            logger.info(f"Extracting assignment data from {assignment_pdf}")
             assignment_data = self.assignment_extraction_agent.extract_assignment(
                 assignment_pdf
             )
+            logger.debug(f"Saving assignment data to {assignment_file}")
             self.assignment_extraction_agent.save_assignment(
                 assignment_data, assignment_file
             )
@@ -174,6 +208,9 @@ class LabCheckerCoordinator:
                 else assignment_data
             )
 
+        logger.warning(
+            "No assignment PDF provided and no existing assignment.json found"
+        )
         return None
 
     def _is_task_completed(self, task_result: Dict[str, Any]) -> bool:
@@ -209,9 +246,11 @@ class LabCheckerCoordinator:
     def _save_final_results(self, results: Dict[str, Any], output_dir: str) -> None:
         """Save final results to JSON file."""
         output_path = f"{output_dir}/lab_analysis_results.json"
+        logger.info(f"Saving final results to {output_path}")
         with open(output_path, "w") as f:
             json.dump(results, f, indent=2, ensure_ascii=False)
 
+        logger.success(f"Final results saved to: {output_path}")
         print(f"Final results saved to: {output_path}")
 
     def run_quick_analysis(
@@ -231,6 +270,7 @@ class LabCheckerCoordinator:
         Returns:
             Dictionary with analysis results
         """
+        logger.info("Starting quick analysis mode")
         return self.run_full_analysis(
             assignment_pdf=assignment_pdf,
             submission_pdf=submission_pdf,
