@@ -187,6 +187,7 @@ You must structure your response in the following JSON format:
         "description": "<Task Description>",
         "deliverables": "<List of required deliverables>",
         "requirements": "<Detailed requirements for the task>",
+        "evaluation_criteria": ["<Criteria for evaluating the task must be inferred if not stated>"],
         }},
     ...
   ]
@@ -194,7 +195,8 @@ You must structure your response in the following JSON format:
 ## Guidelines:
 - Thoroughly analyze both textual and visual content in the assignment specification.
 - Identify each task and its requirements based on the assignment specification.
-- Ensure the final output is valid JSON adhering to the specified structure. 
+- Ensure the final output is valid JSON adhering to the specified structure.
+- Understand how to evaluate the task and come up with evaluation criteria. Don't be harsh, including stylistic aspects.
 - NEVER make up any information. If something is not present in the context, indicate it as such.
 
 ## Assignment PDF Content:
