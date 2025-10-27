@@ -31,7 +31,10 @@ class AssignmentAgent:
         parsed_content = parse_pdf(assignment_pdf)
 
         response = chain_json_with_thinking(self.llm).invoke(
-            self.ASSIGNMENT_EXTRACTION_PROMPT.format(pdf_content=parsed_content["text"])
+            self.ASSIGNMENT_EXTRACTION_PROMPT.format(
+                pdf_content=parsed_content["text"]
+            ),
+            refine_response=True,
         )
         return response
 

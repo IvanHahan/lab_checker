@@ -6,9 +6,12 @@ from typing import Any, Iterator, List, Optional
 from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models import LLM
 from langchain_core.outputs import GenerationChunk
+from loguru import logger
 from openai import OpenAI, Timeout
 from PIL import Image
 from pydantic import Field
+
+from .parsers import parse_output_with_thinking
 
 LLM_MAP = {
     "qwen3_4b_thinking": {
@@ -115,7 +118,10 @@ class OpenAIModel(LLM):
         return self.model
 
     def _prepare_messages(
-        self, prompt: str, image: Optional[Image.Image] = None
+        self,
+        prompt: str,
+        image: Optional[Image.Image] = None,
+        context_with_images: Optional[List[dict]] = None,
     ) -> List[dict]:
         if image is not None:
             if isinstance(image, str):
@@ -134,6 +140,11 @@ class OpenAIModel(LLM):
                     ],
                 },
             ]
+        elif context_with_images is not None:
+            messages = [
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": context_with_images},
+            ]
         else:
             messages = [{"role": "user", "content": prompt}]
         return messages
@@ -142,14 +153,14 @@ class OpenAIModel(LLM):
         self,
         prompt: Optional[str] = None,
         image: Optional[Image.Image] = None,
-        messages: Optional[List[dict]] = None,
+        context_with_images: Optional[List[dict]] = None,
         tools: Optional[List[Any]] = [],
+        refine_response: bool = False,
         stop: Optional[List[str]] = None,
         **kwargs: Any,
     ) -> str:
         """Send prompt to GPT-5 Nano via OpenAI Responses API."""
-        if messages is None:
-            messages = self._prepare_messages(prompt, image)
+        messages = self._prepare_messages(prompt, image, context_with_images)
 
         # kwargs["max_tokens"] = kwargs.get("max_tokens", self.max_tokens)
         # kwargs["temperature"] = kwargs.get("temperature", self.default_temperature)
@@ -162,7 +173,45 @@ class OpenAIModel(LLM):
         )
 
         content = response.output_text
+
+        if refine_response:
+            response = self._validate_and_refine(
+                prompt,
+                image=image,
+                context_with_images=context_with_images,
+                tools=tools,
+                current_response=response.output_text,
+                **kwargs,
+            )
+
         return content
+
+    def _validate_and_refine(
+        self,
+        prompt: Optional[str] = None,
+        image: Optional[Image.Image] = None,
+        context_with_images: Optional[List[dict]] = None,
+        tools: Optional[List[Any]] = [],
+        current_response: Optional[str] = None,
+        **kwargs: Any,
+    ):
+        logger.info("Validating and refining response...")
+        prev_response = current_response
+        for i in range(3):
+            response = (self | parse_output_with_thinking).invoke(
+                REFINEMENT_PROMPT.format(
+                    prompt=prompt,
+                    current_response=current_response,
+                ),
+                image=image,
+                context_with_images=context_with_images,
+                refine_response=False,
+                **kwargs,
+            )
+            logger.info(f"Refinement iteration {i + 1}: {response.reasoning}")
+            if response == "ACCEPTED":
+                return prev_response
+            prev_response = response
 
     def _stream(
         self,
@@ -200,6 +249,25 @@ class OpenAIModel(LLM):
                 pass
 
                 # Check for stop sequences
+
+
+REFINEMENT_PROMPT = """
+You are an expert at validating and refining responses based on given prompts and images.
+Given the original prompt and the current response, identify any inaccuracies, missing details, or areas for improvement.
+
+If the current response adequately addresses the prompt, respond with: ACCEPTED
+Otherwise, provide a refined response that better addresses the prompt while maintaining clarity and coherence.
+
+## Original Prompt:
+{prompt}
+
+## Current Response:
+{current_response}
+
+## Response Format (strictly follow one of these):
+THINKING: <Step-by-step thought process with numbered points (8 steps max, <=20 words each)>
+FINAL_OUTPUT: ACCEPTED | <refined_response>
+"""
 
 
 if __name__ == "__main__":

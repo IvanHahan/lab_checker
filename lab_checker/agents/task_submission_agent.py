@@ -32,7 +32,8 @@ class TaskSubmissionAgent:
         response = chain_json_with_thinking(self.llm).invoke(
             self.EXTRACT_TASK_PROMPT.format(
                 pdf_content=submission_content["text"], task_description=task
-            )
+            ),
+            refine_response=True,
         )
 
         return response
