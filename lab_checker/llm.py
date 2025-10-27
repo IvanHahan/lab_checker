@@ -208,7 +208,9 @@ class OpenAIModel(LLM):
                 refine_response=False,
                 **kwargs,
             )
-            logger.info(f"Refinement iteration {i + 1}: {response.reasoning}")
+            logger.info(
+                f"Refinement iteration {i + 1}: {response.reasoning}\n Response: {response.result}"
+            )
             if response == "ACCEPTED":
                 return prev_response
             prev_response = response
