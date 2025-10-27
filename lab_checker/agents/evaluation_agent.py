@@ -54,29 +54,14 @@ class TaskEvaluationAgent:
                 visuals=visual_context,
             )
 
-        # Prepare message content
-        message_content = [
-            {
-                "type": "input_text",
-                "text": self.EVALUATE_PROMPT.format(
-                    task_description=json.dumps(task, ensure_ascii=False),
-                    student_submission=json.dumps(
-                        submission_analysis, ensure_ascii=False
-                    ),
-                ),
-            },
-            *visual_content,
-        ]
-
         # Get evaluation from LLM
         response = chain_json_with_thinking(self.llm).invoke(
-            "",
-            messages=[
-                {
-                    "role": "user",
-                    "content": message_content,
-                },
-            ],
+            self.EVALUATE_PROMPT.format(
+                task_description=json.dumps(task, ensure_ascii=False),
+                student_submission=json.dumps(submission_analysis, ensure_ascii=False),
+            ),
+            context_with_images=visual_content,
+            refine_response=True,
         )
 
         return response
